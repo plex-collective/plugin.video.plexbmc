@@ -33,10 +33,17 @@ import sys
 # Run
 import plexbmc
 from plexbmc import main
-plexbmc.wake_on_lan()
-plexbmc.nas_override()
-main.PleXBMC()
-main.PleXBMC.reset()  # Dunno if we really need this since we gc the module anyway
+#plexbmc.wake_on_lan()
+#plexbmc.nas_override()
+#main.PleXBMC()
+#main.PleXBMC.reset()  # Dunno if we really need this since we gc the module anyway
+
+print 'plexbmc.__file__'
+print plexbmc.__file__
+
+print 'plexbmc'
+print plexbmc
+
 
 print "===== PLEXBMC STOP ====="
 

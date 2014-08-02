@@ -6,7 +6,8 @@ import xbmcplugin  # pylint: disable=F0401
 
 import plexbmc
 from plexbmc import skins
-#import plexbmc.skins as skins
+from plexbmc import servers
+#from . import servers
 
 
 class PleXBMC(object):
@@ -107,7 +108,7 @@ class PleXBMC(object):
 
         # nt currently used
         elif sys.argv[1] == "refreshplexbmc":
-            server_list = plexbmc.PlexServers.discoverAll()
+            server_list = servers.PlexServers.discoverAll()
             skins.Skin.skin(server_list)
             skins.Skin.shelf(server_list)
             skins.Skin.shelfChannel(server_list)
@@ -133,7 +134,7 @@ class PleXBMC(object):
 
         # Allow a mastre server to be selected (for myplex queue)
         elif sys.argv[1] == "master":
-            plexbmc.PlexServers.setMasterServer()
+            servers.PlexServers.setMasterServer()
 
         # Delete cache and refresh it
         elif str(sys.argv[1]) == "cacherefresh":
@@ -181,11 +182,11 @@ class PleXBMC(object):
                 plexbmc.GUI.TVSeasons(param_url)
 
             elif mode == plexbmc._MODE_PLAYLIBRARY:
-                plexbmc.Commands.playLibraryMedia(
+                servers.PlexServers.playLibraryMedia(
                     param_url, force=force, override=param_transcodeOverride)
 
             elif mode == plexbmc._MODE_PLAYSHELF:
-                plexbmc.Commands.playLibraryMedia(param_url, full_data=True, shelf=True)
+                servers.PlexServers.playLibraryMedia(param_url, full_data=True, shelf=True)
 
             elif mode == plexbmc._MODE_TVEPISODES:
                 plexbmc.GUI.TVEpisodes(param_url)
@@ -228,7 +229,7 @@ class PleXBMC(object):
                 plexbmc.OtherModes.displayServers(param_url)
 
             elif mode == plexbmc._MODE_PLAYLIBRARY_TRANSCODE:
-                plexbmc.Commands.playLibraryMedia(param_url, override=True)
+                servers.PlexServers.playLibraryMedia(param_url, override=True)
 
             elif mode == plexbmc._MODE_MYPLEXQUEUE:
                 plexbmc.OtherModes.myPlexQueue()

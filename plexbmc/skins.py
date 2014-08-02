@@ -2,7 +2,10 @@ import random
 import xbmc  # pylint: disable=F0401
 import xbmcgui  # pylint: disable=F0401
 import xbmcplugin  # pylint: disable=F0401
+
 import plexbmc
+from plexbmc import servers
+#from . import servers
 
 
 class Skin:
@@ -133,7 +136,7 @@ class Skin:
         hide_shared = plexbmc.__settings__.getSetting('hide_shared')
 
         if server_list is None:
-            server_list = plexbmc.PlexServers.discoverAll()
+            server_list = servers.PlexServers.discoverAll()
 
         # For each of the servers we have identified
         for section in plexbmc.Sections.getAllSections(server_list):
@@ -171,8 +174,8 @@ class Skin:
                 window = "Pictures"
                 mode = plexbmc._MODE_PHOTOS
 
-            aToken = plexbmc.MyPlexServers.getAuthDetails(section)
-            qToken = plexbmc.MyPlexServers.getAuthDetails(section, prefix='?')
+            aToken = servers.MyPlexServers.getAuthDetails(section)
+            qToken = servers.MyPlexServers.getAuthDetails(section, prefix='?')
 
             if plexbmc.g_secondary == "true":
                 mode = plexbmc._MODE_GETCONTENT
@@ -392,8 +395,8 @@ class Skin:
             if server['class'] == "secondary":
                 continue
 
-            aToken = plexbmc.MyPlexServers.getAuthDetails(server)
-            qToken = plexbmc.MyPlexServers.getAuthDetails(server, prefix='?')
+            aToken = servers.MyPlexServers.getAuthDetails(server)
+            qToken = servers.MyPlexServers.getAuthDetails(server, prefix='?')
 
             if plexbmc.g_channelview == "true":
                 WINDOW.setProperty("plexbmc.channel", "1")
@@ -517,7 +520,7 @@ class Skin:
         shared_flag = {}
         hide_shared = plexbmc.__settings__.getSetting('hide_shared')
 
-        server_list = plexbmc.PlexServers.discoverAll()
+        server_list = servers.PlexServers.discoverAll()
         plexbmc.printDebug("Using list of " + str(len(server_list)) + " servers: " + str(server_list))
 
         # For each of the servers we have identified
@@ -573,10 +576,10 @@ class Skin:
                 window = "Videos"
                 mode = plexbmc._MODE_PHOTOS
 
-            aToken = plexbmc.MyPlexServers.getAuthDetails(section)
+            aToken = servers.MyPlexServers.getAuthDetails(section)
 
             # XXX: Unused variable 'qToken'
-            qToken = plexbmc.MyPlexServers.getAuthDetails(section, prefix='?')
+            qToken = servers.MyPlexServers.getAuthDetails(section, prefix='?')
 
             print 'g_secondary: %s' % plexbmc.g_secondary
             if plexbmc.g_secondary == "true":
@@ -984,7 +987,7 @@ class Skin:
         full_count = 0
 
         if server_list == {}:
-            server_list = plexbmc.PlexServers.discoverAll()
+            server_list = servers.PlexServers.discoverAll()
 
         if server_list == {}:
             xbmc.executebuiltin("XBMC.Notification(Unable to see any media servers,)")
@@ -1011,7 +1014,7 @@ class Skin:
 
                 #global token
                 token = server_details.get('token', '')
-                aToken = plexbmc.MyPlexServers.getAuthDetails({'token': token})
+                aToken = servers.MyPlexServers.getAuthDetails({'token': token})
                 qToken = '?' + aToken
 
                 sections = plexbmc.Sections.getAllSections(server_list)
@@ -1029,7 +1032,7 @@ class Skin:
                     for section in sections:
                         recent_url = section.get('address') + section.get("path") + "/recentlyAdded"
                         #token = section.get('token', '')
-                        tree = plexbmc.PlexServers.getURL(recent_url)
+                        tree = servers.PlexServers.getURL(recent_url)
                         tree = plexbmc.etree.fromstring(tree)
                         token = server_details.get('token', '')
                         '''
@@ -1082,7 +1085,7 @@ class Skin:
                     for section in sections:
                         ondeck_url = section.get('address') + section.get("path") + "/onDeck"
                         #token = section.get('token', '')
-                        tree = plexbmc.PlexServers.getURL(ondeck_url)
+                        tree = servers.PlexServers.getURL(ondeck_url)
                         tree = plexbmc.etree.fromstring(tree)
                         token = server_details.get('token', '')
                         '''
@@ -1496,7 +1499,7 @@ class Skin:
         full_count = 0
 
         if server_list is None:
-            server_list = plexbmc.PlexServers.discoverAll()
+            server_list = servers.PlexServers.discoverAll()
 
         if server_list == {}:
             xbmc.executebuiltin("XBMC.Notification(Unable to see any media servers,)")
@@ -1519,8 +1522,8 @@ class Skin:
 
             #global token
             token = server_details.get('token', '')
-            aToken = plexbmc.MyPlexServers.getAuthDetails({'token': token})
-            qToken = plexbmc.MyPlexServers.getAuthDetails({'token': token}, prefix='?')
+            aToken = servers.MyPlexServers.getAuthDetails({'token': token})
+            qToken = servers.MyPlexServers.getAuthDetails({'token': token}, prefix='?')
 
             tree = plexbmc.Utility.getXML('http://' + server_details['server'] + ":" + server_details['port'] + endpoint)
             if tree is None:
@@ -1777,7 +1780,7 @@ class Skin:
         channelCount = 1
 
         if server_list is None:
-            server_list = plexbmc.PlexServers.discoverAll()
+            server_list = servers.PlexServers.discoverAll()
 
         if server_list == {}:
             xbmc.executebuiltin("XBMC.Notification(Unable to see any media servers,)")
@@ -1793,10 +1796,10 @@ class Skin:
 
             #global token
             token = server_details.get('token', '')
-            aToken = plexbmc.MyPlexServers.getAuthDetails({'token': token})
+            aToken = servers.MyPlexServers.getAuthDetails({'token': token})
 
             # XXX: Unused variable 'qToken'
-            qToken = plexbmc.MyPlexServers.getAuthDetails({'token': token}, prefix='?')
+            qToken = servers.MyPlexServers.getAuthDetails({'token': token}, prefix='?')
 
             if plexbmc.__settings__.getSetting('channelShelf') == "false" or plexbmc.__settings__.getSetting('homeshelf') == '3':
                 WINDOW.clearProperty("Plexbmc.LatestChannel.1.Path")

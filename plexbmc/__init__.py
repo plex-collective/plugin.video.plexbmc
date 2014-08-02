@@ -55,6 +55,8 @@ import xbmcvfs  # pylint: disable=F0401
 
 from plexbmc import main
 from plexbmc import skins
+from plexbmc import servers
+#from . import servers
 PleXBMC = main.PleXBMC
 
 #import plexbmc.main as main
@@ -221,7 +223,6 @@ def wake_on_lan():
                 except:
                     printDebug("PleXBMC -> Unknown wake on lan error", False)
 
-g_stream = __settings__.getSetting('streaming')
 g_secondary = __settings__.getSetting('secondary')
 g_streamControl = __settings__.getSetting('streamControl')
 g_channelview = __settings__.getSetting('channelview')
@@ -230,7 +231,7 @@ printDebug("PleXBMC -> Flatten is: " + g_flatten, False)
 g_forcedvd = __settings__.getSetting('forcedvd')
 
 if g_debug == "true":
-    print "PleXBMC -> Settings streaming: " + g_stream
+    print "PleXBMC -> Settings streaming: " + servers.PlexServers.GetStreaming()
     print "PleXBMC -> Setting filter menus: " + g_secondary
     print "PleXBMC -> Setting debug to " + g_debug
     if g_streamControl == _SUB_AUDIO_XBMC_CONTROL:
@@ -282,10 +283,6 @@ g_thumb = "special://home/addons/plugin.video.plexbmc/resources/thumb.png"
 g_txheaders = {
     'User-Agent': 'Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US;rv:1.9.2.3) Gecko/20100401 Firefox/3.6.3 ( .NET CLR 3.5.30729)',
 }
-
-# Set up holding variable for session ID
-global g_sessionID
-g_sessionID = None
 
 
 class Cache:
@@ -370,686 +367,6 @@ class Cache:
                 printDebug("UNSUCESSFUL: did not remove %s" % i)
 
 
-class PlexServers:
-    '''
-    '''
-    @staticmethod
-    def discoverAll():
-        '''
-        Take the users settings and add the required master servers
-        to the server list.  These are the devices which will be queried
-        for complete library listings.  There are 3 types:
-            local server - from IP configuration
-            bonjour server - from a bonjour lookup
-            myplex server - from myplex configuration
-        Alters the global g_serverDict value
-        @input: None
-        @return: None
-        '''
-        printDebug("== ENTER: discoverAllServers ==", False)
-
-        das_servers = {}
-        das_server_index = 0
-
-        g_discovery = __settings__.getSetting('discovery')
-
-        if g_discovery == "1":
-            printDebug(
-                "PleXBMC -> local GDM discovery setting enabled.", False)
-            try:
-                import plexgdm
-                printDebug("Attempting GDM lookup on multicast")
-                if g_debug == "true":
-                    GDM_debug = 3
-                else:
-                    GDM_debug = 0
-
-                gdm_cache_file = CACHEDATA + "gdm.server.cache"
-                gdm_cache_ok = False
-                gdm_cache_ok, gdm_server_name = Cache.check(gdm_cache_file)
-
-                if not gdm_cache_ok:
-                    gdm_client = plexgdm.plexgdm(GDM_debug)
-                    gdm_client.discover()
-                    gdm_server_name = gdm_client.getServerList()
-                    Cache.write(gdm_cache_file, gdm_server_name)
-
-                if (gdm_cache_ok or gdm_client.discovery_complete) and gdm_server_name:
-                    printDebug("GDM discovery completed")
-                    for device in gdm_server_name:
-                        das_servers[das_server_index] = device
-                        das_server_index = das_server_index + 1
-                else:
-                    printDebug("GDM was not able to discover any servers")
-            except:
-                print "PleXBMC -> GDM Issue."
-
-        # Set to Disabled
-        else:
-            das_host = __settings__.getSetting('ipaddress')
-            das_port = __settings__.getSetting('port')
-
-            if not das_host or das_host == "<none>":
-                das_host = None
-            elif not das_port:
-                printDebug(
-                    "PleXBMC -> No port defined.  Using default of " + DEFAULT_PORT, False)
-                das_port = DEFAULT_PORT
-
-            printDebug(
-                "PleXBMC -> Settings hostname and port: %s : %s" % (das_host, das_port), False)
-
-            if das_host is not None:
-                local_server = PlexServers.getLocalServers(das_host, das_port)
-                if local_server:
-                    das_servers[das_server_index] = local_server
-                    das_server_index = das_server_index + 1
-
-        if __settings__.getSetting('myplex_user') != "":
-            printDebug("PleXBMC -> Adding myplex as a server location", False)
-
-            myplex_cache_file = CACHEDATA + "myplex.server.cache"
-            success, das_myplex = Cache.check(myplex_cache_file)
-
-            if not success:
-                das_myplex = MyPlexServers.getServers()
-                Cache.write(myplex_cache_file, das_myplex)
-
-            if das_myplex:
-                printDebug("MyPlex discovery completed")
-                for device in das_myplex:
-
-                    das_servers[das_server_index] = device
-                    das_server_index = das_server_index + 1
-
-        # Remove Cloud Sync servers, since they cause problems
-        # for das_server_index,das_server in das_servers.items():
-        # Cloud sync "servers" don't have a version key in the dictionary
-        #     if 'version' not in das_server:
-        #         del das_servers[das_server_index]
-
-        printDebug("PleXBMC -> serverList is " + str(das_servers), False)
-        return Sections.deduplicate(das_servers)
-
-    @staticmethod
-    def getLocalServers(ip_address="localhost", port=32400):
-        '''
-        Connect to the defined local server (either direct or via bonjour discovery)
-        and get a list of all known servers.
-        @input: nothing
-        @return: a list of servers (as Dict)
-        '''
-        printDebug("== ENTER: getLocalServers ==", False)
-
-        url_path = "/"
-        html = PlexServers.getURL(ip_address + ":" + port + url_path)
-
-        if html is False:
-            return []
-
-        server = etree.fromstring(html)
-
-        return {'serverName': server.attrib['friendlyName'].encode('utf-8'),
-                'server': ip_address,
-                'port': port,
-                'discovery': 'local',
-                'token': None,
-                'uuid': server.attrib['machineIdentifier'],
-                'owned': '1',
-                'master': 1,
-                'class': ''}
-
-    @staticmethod
-    def getURL(url, suppress=True, type="GET", popup=0):
-        printDebug("== ENTER: getURL ==", False)
-        try:
-            if url[0:4] == "http":
-                serversplit = 2
-                urlsplit = 3
-            else:
-                serversplit = 0
-                urlsplit = 1
-
-            server = url.split('/')[serversplit]
-            urlPath = "/" + "/".join(url.split('/')[urlsplit:])
-
-            authHeader = MyPlexServers.getAuthDetails(
-                {'token': PleXBMC.getToken()}, False)
-
-            printDebug("url = " + url)
-            printDebug("header = " + str(authHeader))
-            conn = httplib.HTTPConnection(server, timeout=8)
-            conn.request(type, urlPath, headers=authHeader)
-            data = conn.getresponse()
-
-            if int(data.status) == 200:
-                link = data.read()
-                printDebug("====== XML returned =======")
-                printDebug(link, False)
-                printDebug("====== XML finished ======")
-                try:
-                    conn.close()
-                except:
-                    pass
-                return link
-
-            elif (int(data.status) == 301) or (int(data.status) == 302):
-                try:
-                    conn.close()
-                except:
-                    pass
-                return data.getheader('Location')
-
-            elif int(data.status) == 401:
-                error = "Authentication error on server [%s].  Check user/password." % server
-                print "PleXBMC -> %s" % error
-                if suppress is False:
-                    if popup == 0:
-                        xbmc.executebuiltin("XBMC.Notification(Server authentication error,)")
-                    else:
-                        xbmcgui.Dialog().ok("PleXBMC", "Authentication require or incorrect")
-
-            elif int(data.status) == 404:
-                error = "Server [%s] XML/web page does not exist." % server
-                print "PleXBMC -> %s" % error
-                if suppress is False:
-                    if popup == 0:
-                        xbmc.executebuiltin("XBMC.Notification(Server web/XML page error,)")
-                    else:
-                        xbmcgui.Dialog().ok("PleXBMC", "Server error, data does not exist")
-
-            elif int(data.status) >= 400:
-                error = "HTTP response error: " + str(data.status) + " " + str(data.reason)
-                print error
-                if suppress is False:
-                    if popup == 0:
-                        xbmc.executebuiltin("XBMC.Notification(URL error: " + str(data.reason) + ",)")
-                    else:
-                        xbmcgui.Dialog().ok("Error", server)
-
-            else:
-                link = data.read()
-                printDebug("====== XML returned =======")
-                printDebug(link, False)
-                printDebug("====== XML finished ======")
-                try:
-                    conn.close()
-                except:
-                    pass
-                return link
-
-        except socket.gaierror:
-            error = "Unable to locate host [%s]\nCheck host name is correct" % server
-            print "PleXBMC %s" % error
-            if suppress is False:
-                if popup == 0:
-                    xbmc.executebuiltin("XBMC.Notification(\"PleXBMC\": Server name incorrect,)")
-                else:
-                    xbmcgui.Dialog().ok("PleXBMC", "Server [%s] not found" % server)
-
-        except socket.error as msg:
-            error = "Server[%s] is offline, or not responding\nReason: %s" % (
-                server, str(msg))
-            print "PleXBMC -> %s" % error
-            if suppress is False:
-                if popup == 0:
-                    xbmc.executebuiltin("XBMC.Notification(\"PleXBMC\": Server offline or not responding,)")
-                else:
-                    xbmcgui.Dialog().ok("PleXBMC", "Server is offline or not responding")
-
-        try:
-            conn.close()
-        except:
-            pass
-
-        return False
-
-    @staticmethod
-    def setMasterServer():
-        printDebug("== ENTER: setmasterserver ==", False)
-
-        servers = PlexServers.getMasterServer(True)
-        printDebug(str(servers))
-
-        current_master = __settings__.getSetting('masterServer')
-
-        displayList = []
-        for address in servers:
-            found_server = address['name']
-            if found_server == current_master:
-                found_server = found_server + "*"
-            displayList.append(found_server)
-
-        audioScreen = xbmcgui.Dialog()
-        result = audioScreen.select('Select master server', displayList)
-        if result == -1:
-            return False
-
-        printDebug("Setting master server to: %s" % (servers[result]['name'],))
-        __settings__.setSetting('masterServer', servers[result]['name'])
-        return
-
-    @staticmethod
-    def getTranscodeSettings(override=False):
-        printDebug("== ENTER: gettranscodesettings ==", False)
-
-        global g_transcode
-        g_transcode = __settings__.getSetting('transcode')
-
-        if override is True:
-            printDebug("Transcode override.  Will play media with addon transcoding settings")
-            g_transcode = "true"
-
-        if g_transcode == "true":
-            # If transcode is set, ignore the stream setting for file and smb:
-            global g_stream
-            g_stream = "1"
-            printDebug("We are set to Transcode, overriding stream selection")
-            global g_transcodefmt
-            g_transcodefmt = "m3u8"
-
-            global g_quality
-            g_quality = str(int(__settings__.getSetting('quality')) + 3)
-            printDebug("Transcode format is " + g_transcodefmt)
-            printDebug("Transcode quality is " + g_quality)
-
-            baseCapability = "http-live-streaming,http-mp4-streaming,http-streaming-video,http-streaming-video-1080p,http-mp4-video,http-mp4-video-1080p;videoDecoders=h264{profile:high&resolution:1080&level:51};"
-
-            g_audioOutput = __settings__.getSetting("audiotype")
-            if g_audioOutput == "0":
-                audio = "mp3,aac{bitrate:160000}"
-            elif g_audioOutput == "1":
-                audio = "ac3{channels:6}"
-            elif g_audioOutput == "2":
-                audio = "dts{channels:6}"
-
-            global capability
-            capability = "X-Plex-Client-Capabilities=" + urllib.quote_plus("protocols=" + baseCapability + "audioDecoders=" + audio)
-            printDebug("Plex Client Capability = " + capability)
-
-            import uuid
-            global g_sessionID
-            g_sessionID = str(uuid.uuid4())
-
-    @staticmethod
-    def getMasterServer(all=False):
-        printDebug("== ENTER: getmasterserver ==", False)
-
-        possibleServers = []
-        current_master = __settings__.getSetting('masterServer')
-        for serverData in PlexServers.discoverAll().values():
-            printDebug(str(serverData))
-            if serverData['master'] == 1:
-                possibleServers.append({'address': serverData['server'] + ":" + serverData['port'],
-                                        'discovery': serverData['discovery'],
-                                        'name': serverData['serverName'],
-                                        'token': serverData.get('token')})
-        printDebug("Possible master servers are " + str(possibleServers))
-
-        if all:
-            return possibleServers
-
-        if len(possibleServers) > 1:
-            preferred = "local"
-            for serverData in possibleServers:
-                if serverData['name'] == current_master:
-                    printDebug("Returning current master")
-                    return serverData
-                if preferred == "any":
-                    printDebug("Returning 'any'")
-                    return serverData
-                else:
-                    if serverData['discovery'] == preferred:
-                        printDebug("Returning local")
-                        return serverData
-        elif len(possibleServers) == 0:
-            return
-
-        return possibleServers[0]
-
-    @staticmethod
-    def transcode(id, url, identifier=None):
-        printDebug("== ENTER: transcode ==", False)
-
-        server = Utility.getServerFromURL(url)
-
-        # Check for myplex user, which we need to alter to a master server
-        if 'plexapp.com' in url:
-            server = PlexServers.getMasterServer()
-
-        printDebug("Using preferred transcoding server: " + server)
-        printDebug("incoming URL is: %s" % url)
-
-        transcode_request = "/video/:/transcode/segmented/start.m3u8"
-        transcode_settings = {'3g': 0,
-                              'offset': 0,
-                              'quality': g_quality,
-                              'session': g_sessionID,
-                              'identifier': identifier,
-                              'httpCookie': "",
-                              'userAgent': "",
-                              'ratingKey': id,
-                              'subtitleSize': __settings__.getSetting('subSize').split('.')[0],
-                              'audioBoost': __settings__.getSetting('audioSize').split('.')[0],
-                              'key': ""}
-
-        if identifier:
-            transcode_target = url.split('url=')[1]
-            transcode_settings['webkit'] = 1
-        else:
-            transcode_settings['identifier'] = "com.plexapp.plugins.library"
-            transcode_settings['key'] = urllib.quote_plus("http://%s/library/metadata/%s" % (server, id))
-            transcode_target = urllib.quote_plus("http://127.0.0.1:32400" + "/" + "/".join(url.split('/')[3:]))
-            printDebug("filestream URL is: %s" % transcode_target)
-
-        transcode_request = "%s?url=%s" % (transcode_request, transcode_target)
-
-        for argument, value in transcode_settings.items():
-            transcode_request = "%s&%s=%s" % (
-                transcode_request, argument, value)
-
-        printDebug("new transcode request is: %s" % transcode_request)
-
-        now = str(int(round(time.time(), 0)))
-
-        msg = transcode_request + "@" + now
-        printDebug("Message to hash is " + msg)
-
-        # These are the DEV API keys - may need to change them on release
-        publicKey = "KQMIY6GATPC63AIMC4R2"
-        privateKey = base64.decodestring(
-            "k3U6GLkZOoNIoSgjDshPErvqMIFdE0xMTx8kgsrhnC0=")
-
-        import hmac
-        import hashlib
-        hash = hmac.new(privateKey, msg, digestmod=hashlib.sha256)
-
-        printDebug("HMAC after hash is " + hash.hexdigest())
-
-        # Encode the binary hash in base64 for transmission
-        token = base64.b64encode(hash.digest())
-
-        # Send as part of URL to avoid the case sensitive header issue.
-        fullURL = "http://" + server + transcode_request + "&X-Plex-Access-Key=" + publicKey + \
-            "&X-Plex-Access-Time=" + str(now) + "&X-Plex-Access-Code=" + urllib.quote_plus(token) + "&" + capability
-
-        printDebug("Transcoded media location URL " + fullURL)
-
-        return fullURL
-
-    @staticmethod
-    def pluginTranscodeMonitor(sessionID, server):
-        printDebug("== ENTER: pluginTranscodeMonitor ==", False)
-
-        # Logic may appear backward, but this does allow for a failed start to be detected
-        # First while loop waiting for start
-
-        if __settings__.getSetting('monitoroff') == "true":
-            return
-
-        count = 0
-        while not xbmc.Player().isPlaying():
-            printDebug("Not playing yet...sleep for 2")
-            count = count + 2
-            if count >= 40:
-                # Waited 20 seconds and still no movie playing - assume it
-                # isn't going to..
-                return
-            else:
-                time.sleep(2)
-
-        while xbmc.Player().isPlaying():
-            printDebug("Waiting for playback to finish")
-            time.sleep(4)
-
-        printDebug("Playback Stopped")
-        printDebug("Stopping PMS transcode job with session: " + sessionID)
-        stopURL = 'http://' + server + '/video/:/transcode/segmented/stop?session=' + sessionID
-
-        # XXX: Unused variable 'html'
-        html = PlexServers.getURL(stopURL)
-        return
-
-
-class MyPlexServers:
-    '''
-    '''
-    @staticmethod
-    def getServers():
-        '''
-        Connect to the myplex service and get a list of all known
-        servers.
-        @input: nothing
-        @return: a list of servers (as Dict)
-        '''
-
-        printDebug("== ENTER: getMyPlexServers ==", False)
-
-        tempServers = []
-        url_path = "/pms/servers"
-        all_servers = MyPlexServers.getMyPlexURL(url_path)
-
-        if all_servers is False:
-            return {}
-
-        servers = etree.fromstring(all_servers)
-        count = 0
-        for server in servers:
-            #data = dict(server.items())
-
-            if server.get('owned', None) == "1":
-                owned = '1'
-                if count == 0:
-                    master = 1
-                    count = - 1
-                accessToken = MyPlexServers.getMyPlexToken()
-            else:
-                owned = '0'
-                master = 0
-                accessToken = server.get('accessToken')
-
-            tempServers.append({'serverName': server.get('name').encode('utf-8'),
-                                'server': server.get('address'),
-                                'port': server.get('port'),
-                                'discovery': 'myplex',
-                                'token': accessToken,
-                                'uuid': server.get('machineIdentifier'),
-                                'owned': owned,
-                                'master': master,
-                                'class': ""})
-
-        return tempServers
-
-    @staticmethod
-    def getAuthDetails(details, url_format=True, prefix="&"):
-        '''
-        Takes the token and creates the required arguments to allow
-        authentication.  This is really just a formatting tools
-        @input: token as dict, style of output [opt] and prefix style [opt]
-        @return: header string or header dict
-        '''
-        token = details.get('token', None)
-
-        if url_format:
-            if token:
-                return prefix + "X-Plex-Token=" + str(token)
-            else:
-                return ""
-        else:
-            if token:
-                return {'X-Plex-Token': token}
-            else:
-                return {}
-
-    @staticmethod
-    def getMyPlexURL(url_path, renew=False, suppress=True):
-        '''
-        Connect to the my.plexapp.com service and get an XML pages
-        A seperate function is required as interfacing into myplex
-        is slightly different than getting a standard URL
-        @input: url to get, whether we need a new token, whether to display on screen err
-        @return: an xml page as string or false
-        '''
-        printDebug("== ENTER: getMyPlexURL ==", False)
-        printDebug("url = " + MYPLEX_SERVER + url_path)
-
-        try:
-            conn = httplib.HTTPSConnection(MYPLEX_SERVER, timeout=5)
-            conn.request(
-                "GET", url_path + "?X-Plex-Token=" + MyPlexServers.getMyPlexToken(renew))
-            data = conn.getresponse()
-            if (int(data.status) == 401) and not (renew):
-                try:
-                    conn.close()
-                except:
-                    pass
-                return MyPlexServers.getMyPlexURL(url_path, True)
-
-            if int(data.status) >= 400:
-                error = "HTTP response error: " + str(data.status) + " " + str(data.reason)
-                if suppress is False:
-                    xbmcgui.Dialog().ok("Error", error)
-                print error
-                try:
-                    conn.close()
-                except:
-                    pass
-                return False
-            elif int(data.status) == 301 and type == "HEAD":
-                try:
-                    conn.close()
-                except:
-                    pass
-                return str(data.status) + "@" + data.getheader('Location')
-            else:
-                link = data.read()
-                printDebug("====== XML returned =======")
-                printDebug(link, False)
-                printDebug("====== XML finished ======")
-        except socket.gaierror:
-            error = 'Unable to lookup host: ' + MYPLEX_SERVER + "\nCheck host name is correct"
-            if suppress is False:
-                xbmcgui.Dialog().ok("Error", error)
-            print error
-            return False
-        except socket.error as msg:
-            error = "Unable to connect to " + MYPLEX_SERVER + "\nReason: " + str(msg)
-            if suppress is False:
-                xbmcgui.Dialog().ok("Error", error)
-            print error
-            return False
-        else:
-            try:
-                conn.close()
-            except:
-                pass
-
-        if link:
-            return link
-        else:
-            return False
-
-    @staticmethod
-    def getMyPlexToken(renew=False):
-        '''
-        Get the myplex token.  If the user ID stored with the token
-        does not match the current userid, then get new token.  This stops old token
-        being used if plex ID is changed. If token is unavailable, then get a new one
-        @input: whether to get new token
-        @return: myplex token
-        '''
-        printDebug("== ENTER: getMyPlexToken ==", False)
-
-        try:
-            user, token = (__settings__.getSetting('myplex_token')).split('|')
-        except:
-            token = None
-
-        if (token is None) or (renew) or (user != __settings__.getSetting('myplex_user')):
-            token = MyPlexServers.getNewMyPlexToken()
-
-        printDebug(
-            "Using token: " + str(token) + "[Renew: " + str(renew) + "]")
-        return token
-
-    @staticmethod
-    def getNewMyPlexToken(suppress=True, title="Error"):
-        '''
-        Get a new myplex token from myplex API
-        @input: nothing
-        @return: myplex token
-        '''
-        printDebug("== ENTER: getNewMyPlexToken ==", False)
-
-        printDebug("Getting New token")
-        myplex_username = __settings__.getSetting('myplex_user')
-        myplex_password = __settings__.getSetting('myplex_pass')
-
-        if (myplex_username or myplex_password) == "":
-            printDebug("No myplex details in config..")
-            return ""
-
-        base64string = base64.encodestring(
-            '%s:%s' % (myplex_username, myplex_password)).replace('\n', '')
-        txdata = ""
-        token = False
-
-        myplex_headers = {'X-Plex-Platform': "XBMC",
-                          'X-Plex-Platform-Version': "12.00/Frodo",
-                          'X-Plex-Provides': "player",
-                          'X-Plex-Product': "PleXBMC",
-                          'X-Plex-Version': PLEXBMC_VERSION,
-                          'X-Plex-Device': PLEXBMC_PLATFORM,
-                          'X-Plex-Client-Identifier': "PleXBMC",
-                          'Authorization': "Basic %s" % base64string}
-
-        try:
-            conn = httplib.HTTPSConnection(MYPLEX_SERVER)
-            conn.request("POST", "/users/sign_in.xml", txdata, myplex_headers)
-            data = conn.getresponse()
-
-            if int(data.status) == 201:
-                link = data.read()
-                printDebug("====== XML returned =======")
-
-                try:
-                    token = etree.fromstring(link).findtext(
-                        'authentication-token')
-                    __settings__.setSetting(
-                        'myplex_token', myplex_username + "|" + token)
-                except:
-                    printDebug(link)
-
-                printDebug("====== XML finished ======")
-            else:
-                error = "HTTP response error: " + str(data.status) + " " + str(data.reason)
-                if suppress is False:
-                    xbmcgui.Dialog().ok(title, error)
-                print error
-                return ""
-        except socket.gaierror:
-            error = 'Unable to lookup host: MyPlex' + "\nCheck host name is correct"
-            if suppress is False:
-                xbmcgui.Dialog().ok(title, error)
-            print error
-            return ""
-        except socket.error as msg:
-            error = "Unable to connect to MyPlex" + "\nReason: " + str(msg)
-            if suppress is False:
-                xbmcgui.Dialog().ok(title, error)
-            print error
-            return ""
-
-        return token
-
-    @staticmethod
-    def getAuthTokenFromURL(url):
-        if "X-Plex-Token=" in url:
-            return url.split('X-Plex-Token=')[1]
-        else:
-            return ""
-
-
 class Sections:
     '''
     '''
@@ -1102,7 +419,7 @@ class Sections:
         success, temp_list = Cache.check(cache_file)
 
         if not success:
-            html = PlexServers.getURL(
+            html = servers.PlexServers.getURL(
                 'http://%s:%s/library/sections' % (ip_address, port))
 
             if html is False:
@@ -1137,7 +454,7 @@ class Sections:
         success, temp_list = Cache.check(cache_file)
 
         if not success:
-            html = MyPlexServers.getMyPlexURL('/pms/system/library/sections')
+            html = servers.MyPlexServers.getMyPlexURL('/pms/system/library/sections')
 
             if html is False:
                 return {}
@@ -1171,7 +488,7 @@ class Sections:
         printDebug("== ENTER: getAllSections ==", False)
 
         if server_list is None:
-            server_list = PlexServers.discoverAll()
+            server_list = servers.PlexServers.discoverAll()
         printDebug("Using servers list: " + str(server_list))
 
         section_list = []
@@ -1224,7 +541,7 @@ class Sections:
         printDebug("== ENTER: displaySections() ==", False)
         xbmcplugin.setContent(PleXBMC.getHandle(), 'files')
 
-        ds_servers = PlexServers.discoverAll()
+        ds_servers = servers.PlexServers.discoverAll()
         numOfServers = len(ds_servers)
         printDebug(
             "Using list of " + str(numOfServers) + " servers: " + str(ds_servers))
@@ -1360,7 +677,7 @@ class OtherModes:
         printDebug("== ENTER: displayServers ==", False)
         type = url.split('/')[2]
         printDebug("Displaying entries for " + type)
-        server_list = PlexServers.discoverAll()
+        server_list = servers.PlexServers.discoverAll()
         number_of_servers = len(server_list)
 
         # For each of the servers we have identified
@@ -1382,7 +699,7 @@ class OtherModes:
                     mediaserver.get('server', ''), mediaserver.get('port'))
                 if number_of_servers == 1:
                     url.PlexPlugins(
-                        s_url + MyPlexServers.getAuthDetails(extraData, prefix="?"))
+                        s_url + servers.MyPlexServers.getAuthDetails(extraData, prefix="?"))
                     return
 
             elif type == "online":
@@ -1391,7 +708,7 @@ class OtherModes:
                     mediaserver.get('server', ''), mediaserver.get('port'))
                 if number_of_servers == 1:
                     url.plexOnline(
-                        s_url + MyPlexServers.getAuthDetails(extraData, prefix="?"))
+                        s_url + servers.MyPlexServers.getAuthDetails(extraData, prefix="?"))
                     return
 
             elif type == "music":
@@ -1400,7 +717,7 @@ class OtherModes:
                     mediaserver.get('server', ''), mediaserver.get('port'))
                 if number_of_servers == 1:
                     GUI.music(
-                        s_url + MyPlexServers.getAuthDetails(extraData, prefix="?"))
+                        s_url + servers.MyPlexServers.getAuthDetails(extraData, prefix="?"))
                     return
 
             elif type == "photo":
@@ -1409,7 +726,7 @@ class OtherModes:
                     mediaserver.get('server', ''), mediaserver.get('port'))
                 if number_of_servers == 1:
                     GUI.photo(
-                        s_url + MyPlexServers.getAuthDetails(extraData, prefix="?"))
+                        s_url + servers.MyPlexServers.getAuthDetails(extraData, prefix="?"))
                     return
 
             GUI.addGUIItem(s_url, details, extraData)
@@ -1424,7 +741,7 @@ class OtherModes:
             xbmc.executebuiltin("XBMC.Notification(myplex not configured,)")
             return
 
-        html = MyPlexServers.getMyPlexURL('/pms/playlists/queue/all')
+        html = servers.MyPlexServers.getMyPlexURL('/pms/playlists/queue/all')
         tree = etree.fromstring(html)
 
         OtherModes.PlexPlugins(
@@ -1495,7 +812,7 @@ class OtherModes:
 
                 if ret:
                     printDebug("Installing....")
-                    installed = PlexServers.getURL(url + "/install")
+                    installed = servers.PlexServers.getURL(url + "/install")
                     tree = etree.fromstring(installed)
 
                     msg = tree.get('message', '(blank)')
@@ -1517,7 +834,7 @@ class OtherModes:
             "Option " + str(ret) + " selected.  Operation is " + operations[ret])
         u = url + "/" + operations[ret].lower()
 
-        action = PlexServers.getURL(u)
+        action = servers.PlexServers.getURL(u)
         tree = etree.fromstring(action)
 
         msg = tree.get('message')
@@ -1634,7 +951,7 @@ class OtherModes:
                 setString = '%s&%s=%s' % (setString, id, value)
 
         printDebug("Settings URL: %s" % setString)
-        PlexServers.getURL(setString)
+        servers.PlexServers.getURL(setString)
         xbmc.executebuiltin("Container.Refresh")
 
         return False
@@ -1661,7 +978,7 @@ class OtherModes:
             myplex_url = True
             printDebug(
                 "This is a myplex URL, attempting to locate master server")
-            server = PlexServers.getMasterServer()['address']
+            server = servers.PlexServers.getMasterServer()['address']
 
         for plugin in tree:
 
@@ -1982,7 +1299,7 @@ class Utility:
     def getXML(url, media=None):
         printDebug("== ENTER: getXML ==", False)
         if media is None:
-            tree = PlexServers.getURL(url)
+            tree = servers.PlexServers.getURL(url)
 
             if tree is False:
                 print "PleXBMC -> Server [%s] offline, not responding or no data was receieved" % Utility.getServerFromURL(url)
@@ -2050,7 +1367,7 @@ class Commands:
         '''
         printDebug("== ENTER: alterAudio ==", False)
 
-        html = PlexServers.getURL(url)
+        html = servers.PlexServers.getURL(url)
         tree = etree.fromstring(html)
 
         audio_list = []
@@ -2098,14 +1415,14 @@ class Commands:
         if result == -1:
             return False
 
-        authtoken = MyPlexServers.getAuthTokenFromURL(url)
+        authtoken = servers.MyPlexServers.getAuthTokenFromURL(url)
         audio_select_URL = "http://%s/library/parts/%s?audioStreamID=%s" % (Utility.getServerFromURL(
-            url), part_id, audio_list[result]) + MyPlexServers.getAuthDetails({'token': authtoken})
+            url), part_id, audio_list[result]) + servers.MyPlexServers.getAuthDetails({'token': authtoken})
         printDebug("User has selected stream %s" % audio_list[result])
         printDebug("Setting via URL: %s" % audio_select_URL)
 
         # XXX: Unused variable 'outcome'
-        outcome = PlexServers.getURL(audio_select_URL, type="PUT")
+        outcome = servers.PlexServers.getURL(audio_select_URL, type="PUT")
         return True
 
     @staticmethod
@@ -2115,7 +1432,7 @@ class Commands:
         The currently selected stream will be annotated with a *
         '''
         printDebug("== ENTER: alterSubs ==", False)
-        html = PlexServers.getURL(url)
+        html = servers.PlexServers.getURL(url)
 
         tree = etree.fromstring(html)
 
@@ -2157,15 +1474,15 @@ class Commands:
         if result == -1:
             return False
 
-        authtoken = MyPlexServers.getAuthTokenFromURL(url)
+        authtoken = servers.MyPlexServers.getAuthTokenFromURL(url)
         sub_select_URL = "http://%s/library/parts/%s?subtitleStreamID=%s" % (Utility.getServerFromURL(
-            url), part_id, sub_list[result]) + MyPlexServers.getAuthDetails({'token': authtoken})
+            url), part_id, sub_list[result]) + servers.MyPlexServers.getAuthDetails({'token': authtoken})
 
         printDebug("User has selected stream %s" % sub_list[result])
         printDebug("Setting via URL: %s" % sub_select_URL)
 
         # XXX: Unused variable 'outcome'
-        outcome = PlexServers.getURL(sub_select_URL, type="PUT")
+        outcome = servers.PlexServers.getURL(sub_select_URL, type="PUT")
         printDebug(sub_select_URL)
 
         return True
@@ -2181,7 +1498,7 @@ class Commands:
         if return_value:
             printDebug("Deleting....")
             # XXX:  Unused variable 'installed'
-            installed = PlexServers.getURL(url, type="DELETE")
+            installed = servers.PlexServers.getURL(url, type="DELETE")
             xbmc.executebuiltin("Container.Refresh")
         return True
 
@@ -2195,7 +1512,7 @@ class Commands:
             printDebug("Marking as watched with: " + url)
 
         # XXX:  Unused variable 'html'
-        html = PlexServers.getURL(url)
+        html = servers.PlexServers.getURL(url)
 
         xbmc.executebuiltin("Container.Refresh")
         return
@@ -2205,7 +1522,7 @@ class Commands:
         printDebug("== ENTER: libraryRefresh ==", False)
 
         # XXX:  Unused variable 'html'
-        html = PlexServers.getURL(url)
+        html = servers.PlexServers.getURL(url)
 
         printDebug("Library refresh requested")
         xbmc.executebuiltin(
@@ -2225,13 +1542,13 @@ class Commands:
 
         server = Utility.getServerFromURL(vids)
         if "node.plexapp.com" in server:
-            server = PlexServers.getMasterServer()['address']
+            server = servers.PlexServers.getMasterServer()['address']
 
         # If we find the url lookup service, then we probably have a standard
         # plugin, but possibly with resolution choices
         if '/services/url/lookup' in vids:
             printDebug("URL Lookup service")
-            html = PlexServers.getURL(vids, suppress=False)
+            html = servers.PlexServers.getURL(vids, suppress=False)
             if not html:
                 return
             tree = etree.fromstring(html)
@@ -2269,7 +1586,7 @@ class Commands:
         # Check if there is a further level of XML required
         if indirect or '&indirect=1' in vids:
             printDebug("Indirect link")
-            html = PlexServers.getURL(vids, suppress=False)
+            html = servers.PlexServers.getURL(vids, suppress=False)
             if not html:
                 return
             tree = etree.fromstring(html)
@@ -2283,17 +1600,17 @@ class Commands:
         # if we have a plex URL, then this is a transcoding URL
         if 'plex://' in vids:
             printDebug("found webkit video, pass to transcoder")
-            PlexServers.getTranscodeSettings(True)
+            servers.PlexServers.getTranscodeSettings(True)
             if not (prefix):
                 prefix = "system"
-            vids = PlexServers.transcode(0, vids, prefix)
+            vids = servers.PlexServers.transcode(0, vids, prefix)
 
             # Workaround for XBMC HLS request limit of 1024 byts
             if len(vids) > 1000:
                 printDebug(
                     "XBMC HSL limit detected, will pre-fetch m3u8 playlist")
 
-                playlist = PlexServers.getURL(vids)
+                playlist = servers.PlexServers.getURL(vids)
 
                 if not playlist or not "#EXTM3U" in playlist:
 
@@ -2312,7 +1629,7 @@ class Commands:
         if 'trailers.apple.com' in vids:
             url = vids + "|User-Agent=QuickTime/7.6.5 (qtver=7.6.5;os=Windows NT 5.1Service Pack 3)"
         elif server in vids:
-            url = vids + MyPlexServers.getAuthDetails({'token': PleXBMC.getToken()})
+            url = vids + servers.MyPlexServers.getAuthDetails({'token': PleXBMC.getToken()})
         else:
             url = vids
 
@@ -2325,7 +1642,7 @@ class Commands:
 
         if 'transcode' in url:
             try:
-                PlexServers.pluginTranscodeMonitor(g_sessionID, server)
+                servers.PlexServers.pluginTranscodeMonitor(servers.PlexServers.getSessionID(), server)
             except:
                 printDebug("Unable to start transcode monitor")
         else:
@@ -2344,74 +1661,15 @@ class Commands:
         elif url[0:4] == "http":
             printDebug("We are playing a stream")
             if '?' in url:
-                playurl = url + MyPlexServers.getAuthDetails({'token': PleXBMC.getToken()})
+                playurl = url + servers.MyPlexServers.getAuthDetails({'token': PleXBMC.getToken()})
             else:
-                playurl = url + MyPlexServers.getAuthDetails(
+                playurl = url + servers.MyPlexServers.getAuthDetails(
                     {'token': PleXBMC.getToken()}, prefix="?")
         else:
             playurl = url
 
         item = xbmcgui.ListItem(path=playurl)
         return xbmcplugin.setResolvedUrl(PleXBMC.getHandle(), True, item)
-
-    @staticmethod
-    def monitorPlayback(id, server):
-        printDebug("== ENTER: monitorPlayback ==", False)
-
-        if __settings__.getSetting('monitoroff') == "true":
-            return
-
-        if len(server.split(':')) == 1:
-            server = server
-
-        # XXX:  Unused variable 'monitorCount'
-        monitorCount = 0
-        progress = 0
-        complete = 0
-        # Whilst the file is playing back
-        while xbmc.Player().isPlaying():
-            # Get the current playback time
-
-            currentTime = int(xbmc.Player().getTime())
-            totalTime = int(xbmc.Player().getTotalTime())
-            try:
-                progress = int((float(currentTime) / float(totalTime)) * 100)
-            except:
-                progress = 0
-
-            if currentTime < 30:
-                printDebug("Less that 30 seconds, will not set resume")
-
-            # If we are less than 95% completem, store resume time
-            elif progress < 95:
-                printDebug("Movies played time: %s secs of %s @ %s%%" %
-                           (currentTime, totalTime, progress))
-                PlexServers.getURL("http://" + server + "/:/progress?key=" + id +
-                                   "&identifier=com.plexapp.plugins.library&time=" + str(currentTime * 1000), suppress=True)
-                complete = 0
-
-            # Otherwise, mark as watched
-            else:
-                if complete == 0:
-                    printDebug("Movie marked as watched. Over 95% complete")
-                    PlexServers.getURL("http://" + server + "/:/scrobble?key=" +
-                                       id + "&identifier=com.plexapp.plugins.library", suppress=True)
-                    complete = 1
-
-            xbmc.sleep(5000)
-
-        # If we get this far, playback has stopped
-        printDebug("Playback Stopped")
-
-        if g_sessionID is not None:
-            printDebug(
-                "Stopping PMS transcode job with session " + g_sessionID)
-            stopURL = 'http://' + server + '/video/:/transcode/segmented/stop?session=' + g_sessionID
-
-            # XXX:  Unused variable 'html'
-            html = PlexServers.getURL(stopURL)
-
-        return
 
     @staticmethod
     def setAudioSubtitles(stream):
@@ -2465,7 +1723,7 @@ class Commands:
                     xbmc.Player().showSubtitles(False)
                     if subtitle.get('key'):
                         xbmc.Player().setSubtitles(subtitle[
-                            'key'] + MyPlexServers.getAuthDetails({'token': PleXBMC.getToken()}, prefix="?"))
+                            'key'] + servers.MyPlexServers.getAuthDetails({'token': PleXBMC.getToken()}, prefix="?"))
                     else:
                         printDebug(
                             "Enabling embedded subtitles at index %s" % stream['subOffset'])
@@ -2482,132 +1740,6 @@ class Commands:
                 xbmc.Player().showSubtitles(False)
 
         return False
-
-    @staticmethod
-    def playLibraryMedia(vids, override=0, force=None, full_data=False, shelf=False):
-        printDebug("== ENTER: playLibraryMedia ==", False)
-
-        if override == 1:
-            override = True
-            full_data = True
-        else:
-            override = False
-
-        PlexServers.getTranscodeSettings(override)
-        server = Utility.getServerFromURL(vids)
-        id = vids.split('?')[0].split('&')[0].split('/')[-1]
-
-        tree = Utility.getXML(vids)
-        if not tree:
-            return
-
-        if force:
-            full_data = True
-
-        streams = Media.getAudioSubtitlesMedia(server, tree, full_data)
-
-        if force and streams['type'] == "music":
-            vids.playPlaylist(server, streams)
-            return
-
-        url = Media.selectMedia(streams, server)
-
-        if url is None:
-            return
-
-        protocol = url.split(':', 1)[0]
-
-        if protocol == "file":
-            printDebug("We are playing a local file")
-            playurl = url.split(':', 1)[1]
-        elif protocol == "http":
-            printDebug("We are playing a stream")
-            if g_transcode == "true":
-                printDebug("We will be transcoding the stream")
-                playurl = PlexServers.transcode(
-                    id, url) + MyPlexServers.getAuthDetails({'token': PleXBMC.getToken()})
-
-            else:
-                playurl = url + MyPlexServers.getAuthDetails(
-                    {'token': PleXBMC.getToken()}, prefix="?")
-        else:
-            playurl = url
-
-        resume = int(int(streams['media']['viewOffset']) / 1000)
-        duration = int(int(streams['media']['duration']) / 1000)
-
-        if not resume == 0 and shelf:
-            printDebug("Shelf playback: display resume dialog")
-            displayTime = str(datetime.timedelta(seconds=resume))
-            display_list = [
-                "Resume from " + displayTime, "Start from beginning"]
-            resumeScreen = xbmcgui.Dialog()
-            result = resumeScreen.select('Resume', display_list)
-            if result == -1:
-                return False
-
-            if result == 1:
-                resume = 0
-
-        printDebug("Resume has been set to " + str(resume))
-
-        item = xbmcgui.ListItem(path=playurl)
-
-        if streams['full_data']:
-            item.setInfo(type=streams['type'], infoLabels=streams['full_data'])
-            item.setThumbnailImage(
-                streams['full_data'].get('thumbnailImage', ''))
-            item.setIconImage(streams['full_data'].get('thumbnailImage', ''))
-
-        if force:
-
-            if int(force) > 0:
-                resume = int(int(force) / 1000)
-            else:
-                resume = force
-
-        if force or shelf:
-            if resume:
-                printDebug("Playback from resume point")
-                item.setProperty('ResumeTime', str(resume))
-                item.setProperty('TotalTime', str(duration))
-
-        if streams['type'] == "picture":
-            import json
-            request = json.dumps({"id": 1,
-                                  "jsonrpc": "2.0",
-                                  "method": "Player.Open",
-                                  "params": {"item": {"file": playurl}}})
-            # XXX: Unused variable 'html'
-            html = xbmc.executeJSONRPC(request)
-            return
-        else:
-            # XXX: Unused variable 'start'
-            start = xbmcplugin.setResolvedUrl(PleXBMC.getHandle(), True, item)
-
-        # record the playing file and server in the home window
-        # so that plexbmc helper can find out what is playing
-        WINDOW = xbmcgui.Window(10000)
-        WINDOW.setProperty('plexbmc.nowplaying.server', server)
-        WINDOW.setProperty('plexbmc.nowplaying.id', id)
-
-        # Set a loop to wait for positive confirmation of playback
-        count = 0
-        while not xbmc.Player().isPlaying():
-            printDebug("Not playing yet...sleep for 2")
-            count = count + 2
-            if count >= 20:
-                return
-            else:
-                time.sleep(2)
-
-        if not (g_transcode == "true"):
-            Commands.setAudioSubtitles(streams)
-
-        if streams['type'] == "video":
-            Commands.monitorPlayback(id, server)
-
-        return
 
     @staticmethod
     def playPlaylist(server, data):
@@ -2647,9 +1779,7 @@ class Media:
         stream = partData['key']
         file = partData['file']
 
-        global g_stream
-
-        if (file is None) or (g_stream == "1"):
+        if (file is None) or (servers.PlexServers.GetStreaming() == "1"):
             printDebug("Selecting stream")
             return "http://" + server + stream
 
@@ -2671,7 +1801,7 @@ class Media:
 
         # 0 is auto select.  basically check for local file first, then stream
         # if not found
-        if g_stream == "0":
+        if servers.PlexServers.GetStreaming() == "0":
             # check if the file can be found locally
             if type == "nixfile" or type == "winfile":
                 try:
@@ -2686,13 +1816,13 @@ class Media:
             printDebug("No local file")
             if dvdplayback:
                 printDebug("Forcing SMB for DVD playback")
-                g_stream = "2"
+                servers.PlexServers.SetStreaming("2")
             else:
                 return "http://" + server + stream
 
         # 2 is use SMB
-        elif g_stream == "2" or g_stream == "3":
-            if g_stream == "2":
+        elif servers.PlexServers.GetStreaming() == "2" or servers.PlexServers.GetStreaming() == "3":
+            if servers.PlexServers.GetStreaming() == "2":
                 protocol = "smb"
             else:
                 protocol = "afp"
@@ -3116,7 +2246,7 @@ class Media:
             else:
                 return
 
-        html = PlexServers.getURL(url, suppress=False, popup=1)
+        html = servers.PlexServers.getURL(url, suppress=False, popup=1)
 
         if html is False:
             return
@@ -3177,8 +2307,8 @@ class GUI:
         if (extraData.get('token', None) is None) and PleXBMC.getToken():
             extraData['token'] = PleXBMC.getToken()
 
-        aToken = MyPlexServers.getAuthDetails(extraData)
-        qToken = MyPlexServers.getAuthDetails(extraData, prefix='?')
+        aToken = servers.MyPlexServers.getAuthDetails(extraData)
+        qToken = servers.MyPlexServers.getAuthDetails(extraData, prefix='?')
 
         if extraData.get('mode', None) is None:
             mode = "&mode=0"
@@ -3396,23 +2526,23 @@ class GUI:
 
         # Initiate Library refresh
         libraryRefresh = plugin_url + "update, " + \
-            refreshURL.split('?')[0] + MyPlexServers.getAuthDetails(itemData, prefix="?") + ")"
+            refreshURL.split('?')[0] + servers.MyPlexServers.getAuthDetails(itemData, prefix="?") + ")"
         context.append(('Rescan library section', libraryRefresh, ))
 
         # Mark media unwatched
         unwatchURL = "http://" + server + "/:/unscrobble?key=" + ID + \
-            "&identifier=com.plexapp.plugins.library" + MyPlexServers.getAuthDetails(itemData)
+            "&identifier=com.plexapp.plugins.library" + servers.MyPlexServers.getAuthDetails(itemData)
         unwatched = plugin_url + "watch, " + unwatchURL + ")"
         context.append(('Mark as Unwatched', unwatched, ))
 
         # Mark media watched
         watchURL = "http://" + server + "/:/scrobble?key=" + ID + \
-            "&identifier=com.plexapp.plugins.library" + MyPlexServers.getAuthDetails(itemData)
+            "&identifier=com.plexapp.plugins.library" + servers.MyPlexServers.getAuthDetails(itemData)
         watched = plugin_url + "watch, " + watchURL + ")"
         context.append(('Mark as Watched', watched, ))
 
         # Delete media from Library
-        deleteURL = "http://" + server + "/library/metadata/" + ID + MyPlexServers.getAuthDetails(itemData, prefix="?")
+        deleteURL = "http://" + server + "/library/metadata/" + ID + servers.MyPlexServers.getAuthDetails(itemData, prefix="?")
         removed = plugin_url + "delete, " + deleteURL + ")"
         context.append(('Delete media', removed, ))
 
@@ -3425,12 +2555,12 @@ class GUI:
         context.append(('Reload Section', listingRefresh, ))
 
         # alter audio
-        alterAudioURL = "http://" + server + "/library/metadata/" + ID + MyPlexServers.getAuthDetails(itemData, prefix="?")
+        alterAudioURL = "http://" + server + "/library/metadata/" + ID + servers.MyPlexServers.getAuthDetails(itemData, prefix="?")
         alterAudio = plugin_url + "audio, " + alterAudioURL + ")"
         context.append(('Select Audio', alterAudio, ))
 
         # alter subs
-        alterSubsURL = "http://" + server + "/library/metadata/" + ID + MyPlexServers.getAuthDetails(itemData, prefix="?")
+        alterSubsURL = "http://" + server + "/library/metadata/" + ID + servers.MyPlexServers.getAuthDetails(itemData, prefix="?")
         alterSubs = plugin_url + "subs, " + alterSubsURL + ")"
         context.append(('Select Subtitle', alterSubs, ))
 
