@@ -278,6 +278,8 @@ g_sessionID = None
 
 
 class Cache:
+    '''
+    '''
     @staticmethod
     def read(cachefile):
         if __settings__.getSetting("cache") == "false":
@@ -358,6 +360,8 @@ class Cache:
 
 
 class PlexServers:
+    '''
+    '''
     @staticmethod
     def discoverAll():
         '''
@@ -530,31 +534,25 @@ class PlexServers:
                 print "PleXBMC -> %s" % error
                 if suppress is False:
                     if popup == 0:
-                        xbmc.executebuiltin(
-                            "XBMC.Notification(Server authentication error,)")
+                        xbmc.executebuiltin("XBMC.Notification(Server authentication error,)")
                     else:
-                        xbmcgui.Dialog().ok(
-                            "PleXBMC", "Authentication require or incorrect")
+                        xbmcgui.Dialog().ok("PleXBMC", "Authentication require or incorrect")
 
             elif int(data.status) == 404:
                 error = "Server [%s] XML/web page does not exist." % server
                 print "PleXBMC -> %s" % error
                 if suppress is False:
                     if popup == 0:
-                        xbmc.executebuiltin(
-                            "XBMC.Notification(Server web/XML page error,)")
+                        xbmc.executebuiltin("XBMC.Notification(Server web/XML page error,)")
                     else:
-                        xbmcgui.Dialog().ok(
-                            "PleXBMC", "Server error, data does not exist")
+                        xbmcgui.Dialog().ok("PleXBMC", "Server error, data does not exist")
 
             elif int(data.status) >= 400:
-                error = "HTTP response error: " + \
-                    str(data.status) + " " + str(data.reason)
+                error = "HTTP response error: " + str(data.status) + " " + str(data.reason)
                 print error
                 if suppress is False:
                     if popup == 0:
-                        xbmc.executebuiltin(
-                            "XBMC.Notification(URL error: " + str(data.reason) + ",)")
+                        xbmc.executebuiltin("XBMC.Notification(URL error: " + str(data.reason) + ",)")
                     else:
                         xbmcgui.Dialog().ok("Error", server)
 
@@ -574,11 +572,9 @@ class PlexServers:
             print "PleXBMC %s" % error
             if suppress is False:
                 if popup == 0:
-                    xbmc.executebuiltin(
-                        "XBMC.Notification(\"PleXBMC\": Server name incorrect,)")
+                    xbmc.executebuiltin("XBMC.Notification(\"PleXBMC\": Server name incorrect,)")
                 else:
-                    xbmcgui.Dialog().ok(
-                        "PleXBMC", "Server [%s] not found" % server)
+                    xbmcgui.Dialog().ok("PleXBMC", "Server [%s] not found" % server)
 
         except socket.error as msg:
             error = "Server[%s] is offline, or not responding\nReason: %s" % (
@@ -586,11 +582,9 @@ class PlexServers:
             print "PleXBMC -> %s" % error
             if suppress is False:
                 if popup == 0:
-                    xbmc.executebuiltin(
-                        "XBMC.Notification(\"PleXBMC\": Server offline or not responding,)")
+                    xbmc.executebuiltin("XBMC.Notification(\"PleXBMC\": Server offline or not responding,)")
                 else:
-                    xbmcgui.Dialog().ok(
-                        "PleXBMC", "Server is offline or not responding")
+                    xbmcgui.Dialog().ok("PleXBMC", "Server is offline or not responding")
 
         try:
             conn.close()
@@ -632,8 +626,7 @@ class PlexServers:
         g_transcode = __settings__.getSetting('transcode')
 
         if override is True:
-            printDebug(
-                "Transcode override.  Will play media with addon transcoding settings")
+            printDebug("Transcode override.  Will play media with addon transcoding settings")
             g_transcode = "true"
 
         if g_transcode == "true":
@@ -660,9 +653,7 @@ class PlexServers:
                 audio = "dts{channels:6}"
 
             global capability
-            capability = "X-Plex-Client-Capabilities=" + \
-                urllib.quote_plus(
-                    "protocols=" + baseCapability + "audioDecoders=" + audio)
+            capability = "X-Plex-Client-Capabilities=" + urllib.quote_plus("protocols=" + baseCapability + "audioDecoders=" + audio)
             printDebug("Plex Client Capability = " + capability)
 
             import uuid
@@ -736,10 +727,8 @@ class PlexServers:
             transcode_settings['webkit'] = 1
         else:
             transcode_settings['identifier'] = "com.plexapp.plugins.library"
-            transcode_settings['key'] = urllib.quote_plus(
-                "http://%s/library/metadata/%s" % (server, id))
-            transcode_target = urllib.quote_plus(
-                "http://127.0.0.1:32400" + "/" + "/".join(url.split('/')[3:]))
+            transcode_settings['key'] = urllib.quote_plus("http://%s/library/metadata/%s" % (server, id))
+            transcode_target = urllib.quote_plus("http://127.0.0.1:32400" + "/" + "/".join(url.split('/')[3:]))
             printDebug("filestream URL is: %s" % transcode_target)
 
         transcode_request = "%s?url=%s" % (transcode_request, transcode_target)
@@ -771,9 +760,7 @@ class PlexServers:
 
         # Send as part of URL to avoid the case sensitive header issue.
         fullURL = "http://" + server + transcode_request + "&X-Plex-Access-Key=" + publicKey + \
-            "&X-Plex-Access-Time=" + \
-            str(now) + "&X-Plex-Access-Code=" + \
-            urllib.quote_plus(token) + "&" + capability
+            "&X-Plex-Access-Time=" + str(now) + "&X-Plex-Access-Code=" + urllib.quote_plus(token) + "&" + capability
 
         printDebug("Transcoded media location URL " + fullURL)
 
@@ -806,8 +793,7 @@ class PlexServers:
 
         printDebug("Playback Stopped")
         printDebug("Stopping PMS transcode job with session: " + sessionID)
-        stopURL = 'http://' + server + \
-            '/video/:/transcode/segmented/stop?session=' + sessionID
+        stopURL = 'http://' + server + '/video/:/transcode/segmented/stop?session=' + sessionID
 
         # XXX: Unused variable 'html'
         html = PlexServers.getURL(stopURL)
@@ -815,7 +801,6 @@ class PlexServers:
 
 
 class MyPlexServers:
-
     '''
     '''
     @staticmethod
@@ -910,8 +895,7 @@ class MyPlexServers:
                 return MyPlexServers.getMyPlexURL(url_path, True)
 
             if int(data.status) >= 400:
-                error = "HTTP response error: " + \
-                    str(data.status) + " " + str(data.reason)
+                error = "HTTP response error: " + str(data.status) + " " + str(data.reason)
                 if suppress is False:
                     xbmcgui.Dialog().ok("Error", error)
                 print error
@@ -932,15 +916,13 @@ class MyPlexServers:
                 printDebug(link, False)
                 printDebug("====== XML finished ======")
         except socket.gaierror:
-            error = 'Unable to lookup host: ' + \
-                MYPLEX_SERVER + "\nCheck host name is correct"
+            error = 'Unable to lookup host: ' + MYPLEX_SERVER + "\nCheck host name is correct"
             if suppress is False:
                 xbmcgui.Dialog().ok("Error", error)
             print error
             return False
         except socket.error as msg:
-            error = "Unable to connect to " + \
-                MYPLEX_SERVER + "\nReason: " + str(msg)
+            error = "Unable to connect to " + MYPLEX_SERVER + "\nReason: " + str(msg)
             if suppress is False:
                 xbmcgui.Dialog().ok("Error", error)
             print error
@@ -1029,15 +1011,13 @@ class MyPlexServers:
 
                 printDebug("====== XML finished ======")
             else:
-                error = "HTTP response error: " + \
-                    str(data.status) + " " + str(data.reason)
+                error = "HTTP response error: " + str(data.status) + " " + str(data.reason)
                 if suppress is False:
                     xbmcgui.Dialog().ok(title, error)
                 print error
                 return ""
         except socket.gaierror:
-            error = 'Unable to lookup host: MyPlex' + \
-                "\nCheck host name is correct"
+            error = 'Unable to lookup host: MyPlex' + "\nCheck host name is correct"
             if suppress is False:
                 xbmcgui.Dialog().ok(title, error)
             print error
@@ -1060,7 +1040,6 @@ class MyPlexServers:
 
 
 class Sections:
-
     '''
     '''
     @staticmethod
@@ -1081,19 +1060,19 @@ class Sections:
         for onedevice in temp_list:
             twoCount = 0
             for twodevice in temp_list:
-                #printDebug( "["+str(oneCount)+":"+str(twoCount)+"] Checking " + onedevice['uuid'] + " and " + twodevice['uuid'])
+                #printDebug("["+str(oneCount)+":"+str(twoCount)+"] Checking " + onedevice['uuid'] + " and " + twodevice['uuid'])
                 if oneCount == twoCount:
-                    #printDebug( "skip" )
+                    # printDebug("skip")
                     twoCount += 1
                     continue
                 if onedevice['uuid'] == twodevice['uuid']:
-                    #printDebug ( "match" )
+                    #printDebug ("match")
                     if onedevice['discovery'] == "auto" or onedevice['discovery'] == "local":
                         temp_list.pop(twoCount)
                     else:
                         temp_list.pop(oneCount)
                 # else:
-                #    printDebug( "no match" )
+                #    printDebug("no match")
                 twoCount += 1
             oneCount += 1
         count = 0
@@ -1294,10 +1273,8 @@ class Sections:
 
             if g_skipcontext == "false":
                 context = []
-                refreshURL = "http://" + \
-                    section.get('address') + section.get('path') + "/refresh"
-                libraryRefresh = "RunScript(plugin.video.plexbmc, update ," + \
-                    refreshURL + ")"
+                refreshURL = "http://" + section.get('address') + section.get('path') + "/refresh"
+                libraryRefresh = "RunScript(plugin.video.plexbmc, update ," + refreshURL + ")"
                 context.append(('Refresh library section', libraryRefresh, ))
             else:
                 context = None
@@ -1337,8 +1314,7 @@ class Sections:
                          'token': server.get('token', None)}
 
             extraData['mode'] = _MODE_CHANNELVIEW
-            u = "http://" + server['server'] + ":" + \
-                server['port'] + "/system/plugins/all"
+            u = "http://" + server['server'] + ":" + server['port'] + "/system/plugins/all"
             GUI.addGUIItem(u, details, extraData)
 
             # Create plexonline link
@@ -1347,8 +1323,7 @@ class Sections:
             extraData['thumb'] = g_thumb
             extraData['mode'] = _MODE_PLEXONLINE
 
-            u = "http://" + server['server'] + ":" + \
-                server['port'] + "/system/plexonline"
+            u = "http://" + server['server'] + ":" + server['port'] + "/system/plexonline"
             GUI.addGUIItem(u, details, extraData)
 
         if __settings__.getSetting("cache") == "true":
@@ -2320,16 +2295,14 @@ class Commands:
 
                 server = Utility.getServerFromURL(vids)
                 session = playlist.split()[-1]
-                vids = "http://" + server + \
-                    "/video/:/transcode/segmented/" + session + "?t=1"
+                vids = "http://" + server + "/video/:/transcode/segmented/" + session + "?t=1"
 
         printDebug("URL to Play: " + vids)
         printDebug("Prefix is: " + str(prefix))
 
         # If this is an Apple movie trailer, add User Agent to allow access
         if 'trailers.apple.com' in vids:
-            url = vids + \
-                "|User-Agent=QuickTime/7.6.5 (qtver=7.6.5;os=Windows NT 5.1Service Pack 3)"
+            url = vids + "|User-Agent=QuickTime/7.6.5 (qtver=7.6.5;os=Windows NT 5.1Service Pack 3)"
         elif server in vids:
             url = vids + MyPlexServers.getAuthDetails({'token': _PARAM_TOKEN})
         else:
@@ -2363,12 +2336,10 @@ class Commands:
         elif url[0:4] == "http":
             printDebug("We are playing a stream")
             if '?' in url:
-                playurl = url + \
-                    MyPlexServers.getAuthDetails({'token': _PARAM_TOKEN})
+                playurl = url + MyPlexServers.getAuthDetails({'token': _PARAM_TOKEN})
             else:
-                playurl = url + \
-                    MyPlexServers.getAuthDetails(
-                        {'token': _PARAM_TOKEN}, prefix="?")
+                playurl = url + MyPlexServers.getAuthDetails(
+                    {'token': _PARAM_TOKEN}, prefix="?")
         else:
             playurl = url
 
@@ -2427,8 +2398,7 @@ class Commands:
         if g_sessionID is not None:
             printDebug(
                 "Stopping PMS transcode job with session " + g_sessionID)
-            stopURL = 'http://' + server + \
-                '/video/:/transcode/segmented/stop?session=' + g_sessionID
+            stopURL = 'http://' + server + '/video/:/transcode/segmented/stop?session=' + g_sessionID
 
             # XXX:  Unused variable 'html'
             html = PlexServers.getURL(stopURL)
@@ -2550,9 +2520,8 @@ class Commands:
                     id, url) + MyPlexServers.getAuthDetails({'token': _PARAM_TOKEN})
 
             else:
-                playurl = url + \
-                    MyPlexServers.getAuthDetails(
-                        {'token': _PARAM_TOKEN}, prefix="?")
+                playurl = url + MyPlexServers.getAuthDetails(
+                    {'token': _PARAM_TOKEN}, prefix="?")
         else:
             playurl = url
 
@@ -2743,18 +2712,15 @@ class Media:
                             "Adding AFP/SMB login info for user " + nasuser)
 
                 if file.find('Volumes') > 0:
-                    filelocation = protocol + ":/" + \
-                        file.replace("Volumes", loginstring + server)
+                    filelocation = protocol + ":/" + file.replace("Volumes", loginstring + server)
                 else:
                     if type == "winfile":
-                        filelocation = protocol + "://" + \
-                            loginstring + server + "/" + file[3:]
+                        filelocation = protocol + "://" + loginstring + server + "/" + file[3:]
                     else:
                         # else assume its a file local to server available over
                         # smb/samba (now we have linux PMS).  Add server name
                         # to file path.
-                        filelocation = protocol + "://" + \
-                            loginstring + server + file
+                        filelocation = protocol + "://" + loginstring + server + file
 
             if g_nasoverride == "true" and g_nasroot != "":
                 # Re-root the file path
@@ -2951,8 +2917,7 @@ class Media:
                         subCount += 1
                         subtitle = stream
                         if stream.get('key'):
-                            subtitle['key'] = 'http://' + \
-                                server + stream['key']
+                            subtitle['key'] = 'http://' + server + stream['key']
                         else:
                             selectedSubOffset = int(
                                 stream.get('index')) - subOffset
@@ -3427,27 +3392,23 @@ class GUI:
 
         # Initiate Library refresh
         libraryRefresh = plugin_url + "update, " + \
-            refreshURL.split(
-                '?')[0] + MyPlexServers.getAuthDetails(itemData, prefix="?") + ")"
+            refreshURL.split('?')[0] + MyPlexServers.getAuthDetails(itemData, prefix="?") + ")"
         context.append(('Rescan library section', libraryRefresh, ))
 
         # Mark media unwatched
         unwatchURL = "http://" + server + "/:/unscrobble?key=" + ID + \
-            "&identifier=com.plexapp.plugins.library" + \
-            MyPlexServers.getAuthDetails(itemData)
+            "&identifier=com.plexapp.plugins.library" + MyPlexServers.getAuthDetails(itemData)
         unwatched = plugin_url + "watch, " + unwatchURL + ")"
         context.append(('Mark as Unwatched', unwatched, ))
 
         # Mark media watched
         watchURL = "http://" + server + "/:/scrobble?key=" + ID + \
-            "&identifier=com.plexapp.plugins.library" + \
-            MyPlexServers.getAuthDetails(itemData)
+            "&identifier=com.plexapp.plugins.library" + MyPlexServers.getAuthDetails(itemData)
         watched = plugin_url + "watch, " + watchURL + ")"
         context.append(('Mark as Watched', watched, ))
 
         # Delete media from Library
-        deleteURL = "http://" + server + "/library/metadata/" + \
-            ID + MyPlexServers.getAuthDetails(itemData, prefix="?")
+        deleteURL = "http://" + server + "/library/metadata/" + ID + MyPlexServers.getAuthDetails(itemData, prefix="?")
         removed = plugin_url + "delete, " + deleteURL + ")"
         context.append(('Delete media', removed, ))
 
@@ -3460,14 +3421,12 @@ class GUI:
         context.append(('Reload Section', listingRefresh, ))
 
         # alter audio
-        alterAudioURL = "http://" + server + "/library/metadata/" + \
-            ID + MyPlexServers.getAuthDetails(itemData, prefix="?")
+        alterAudioURL = "http://" + server + "/library/metadata/" + ID + MyPlexServers.getAuthDetails(itemData, prefix="?")
         alterAudio = plugin_url + "audio, " + alterAudioURL + ")"
         context.append(('Select Audio', alterAudio, ))
 
         # alter subs
-        alterSubsURL = "http://" + server + "/library/metadata/" + \
-            ID + MyPlexServers.getAuthDetails(itemData, prefix="?")
+        alterSubsURL = "http://" + server + "/library/metadata/" + ID + MyPlexServers.getAuthDetails(itemData, prefix="?")
         alterSubs = plugin_url + "subs, " + alterSubsURL + ")"
         context.append(('Select Subtitle', alterSubs, ))
 
@@ -3735,8 +3694,7 @@ class GUI:
 
             # get ALL SEASONS thumb
             if not season_thumb and episode.get('parentThumb', ""):
-                extraData['season_thumb'] = "http://" + \
-                    server + episode.get('parentThumb', "")
+                extraData['season_thumb'] = "http://" + server + episode.get('parentThumb', "")
 
             if banner:
                 extraData['banner'] = "http://" + server + banner
@@ -3980,8 +3938,7 @@ class GUI:
                         if photo.tag == "Media":
                             for images in photo:
                                 if images.tag == "Part":
-                                    extraData['key'] = "http://" + \
-                                        server + images.get('key', '')
+                                    extraData['key'] = "http://" + server + images.get('key', '')
                                     details['size'] = int(
                                         images.get('size', 0))
                                     u = extraData['key']
@@ -4733,8 +4690,7 @@ class Skin:
 
             path2 = "ActivateWindow({0},plugin://plugin.video.plexbmc/?url={1},return)".format(
                 window, s_url)
-            path3 = "ActivateWindow(" + window + \
-                ",plugin://plugin.video.plexbmc/?url=" + s_url + ",return)"
+            path3 = "ActivateWindow(" + window + ",plugin://plugin.video.plexbmc/?url=" + s_url + ",return)"
 
             #path = "ActivateWindow(VideoLibrary,plugin://plugin.video.plexbmc/?url=http://10.0.0.10:32400/library/sections/5,return)"
             print 'path: %s' % path
@@ -4952,25 +4908,25 @@ class Skin:
         printDebug("Clearing properties from [" + str(sectionCount) + "] to [" + WINDOW.getProperty("plexbmc.sectionCount") + "]")
 
         for i in range(sectionCount, int(WINDOW.getProperty("plexbmc.sectionCount"))+1):
-            WINDOW.clearProperty("plexbmc.%d.uuid"    % ( i ) )
-            WINDOW.clearProperty("plexbmc.%d.title"    % ( i ) )
-            WINDOW.clearProperty("plexbmc.%d.subtitle" % ( i ) )
-            WINDOW.clearProperty("plexbmc.%d.url"      % ( i ) )
-            WINDOW.clearProperty("plexbmc.%d.path"     % ( i ) )
-            WINDOW.clearProperty("plexbmc.%d.window"   % ( i ) )
-            WINDOW.clearProperty("plexbmc.%d.art"      % ( i ) )
-            WINDOW.clearProperty("plexbmc.%d.type"     % ( i ) )
-            WINDOW.clearProperty("plexbmc.%d.icon"     % ( i ) )
-            WINDOW.clearProperty("plexbmc.%d.thumb"    % ( i ) )
-            WINDOW.clearProperty("plexbmc.%d.recent"    % ( i ) )
-            WINDOW.clearProperty("plexbmc.%d.all"    % ( i ) )
-            WINDOW.clearProperty("plexbmc.%d.search"    % ( i ) )
-            WINDOW.clearProperty("plexbmc.%d.viewed"    % ( i ) )
-            WINDOW.clearProperty("plexbmc.%d.ondeck" % ( i ) )
-            WINDOW.clearProperty("plexbmc.%d.released" % ( i ) )
-            WINDOW.clearProperty("plexbmc.%d.shared"     % ( i ) )
-            WINDOW.clearProperty("plexbmc.%d.album"     % ( i ) )
-            WINDOW.clearProperty("plexbmc.%d.year"     % ( i ) )
+            WINDOW.clearProperty("plexbmc.%d.uuid"    % (i) )
+            WINDOW.clearProperty("plexbmc.%d.title"    % (i) )
+            WINDOW.clearProperty("plexbmc.%d.subtitle" % (i) )
+            WINDOW.clearProperty("plexbmc.%d.url"      % (i) )
+            WINDOW.clearProperty("plexbmc.%d.path"     % (i) )
+            WINDOW.clearProperty("plexbmc.%d.window"   % (i) )
+            WINDOW.clearProperty("plexbmc.%d.art"      % (i) )
+            WINDOW.clearProperty("plexbmc.%d.type"     % (i) )
+            WINDOW.clearProperty("plexbmc.%d.icon"     % (i) )
+            WINDOW.clearProperty("plexbmc.%d.thumb"    % (i) )
+            WINDOW.clearProperty("plexbmc.%d.recent"    % (i) )
+            WINDOW.clearProperty("plexbmc.%d.all"    % (i) )
+            WINDOW.clearProperty("plexbmc.%d.search"    % (i) )
+            WINDOW.clearProperty("plexbmc.%d.viewed"    % (i) )
+            WINDOW.clearProperty("plexbmc.%d.ondeck" % (i) )
+            WINDOW.clearProperty("plexbmc.%d.released" % (i) )
+            WINDOW.clearProperty("plexbmc.%d.shared"     % (i) )
+            WINDOW.clearProperty("plexbmc.%d.album"     % (i) )
+            WINDOW.clearProperty("plexbmc.%d.year"     % (i) )
 
     except:
         pass
@@ -5750,8 +5706,7 @@ class Skin:
 
                 s_url = "PlayMedia(plugin://plugin.video.plexbmc?url=%s&mode=%s%s)" % (Utility.getLinkURL(
                     'http://' + server_address, media, server_address), _MODE_PLAYSHELF, aToken)
-                s_thumb = "http://" + server_address + \
-                    media.get('grandparentThumb', '')
+                s_thumb = "http://" + server_address + media.get('grandparentThumb', '')
 
                 WINDOW.setProperty(
                     "Plexbmc.LatestEpisode.%s.Path" % seasonCount, s_url)
@@ -5944,9 +5899,7 @@ class Skin:
                 pms_thumb = str(media.get('thumb', ''))
 
                 if pms_thumb.startswith('/'):
-                    c_thumb = 'http://' + \
-                        server_details['server'] + ":" + \
-                        server_details['port'] + pms_thumb
+                    c_thumb = 'http://' + server_details['server'] + ":" + server_details['port'] + pms_thumb
                 else:
                     c_thumb = pms_thumb
 
@@ -6032,7 +5985,7 @@ def jason_test():
     listitems = list()
     #self.section = 'Hey there'
     xbmcplugin.setContent(pluginhandle, 'movies')
-    #self.parse_movies( 'recentmovies', 32005, listitems )
+    #self.parse_movies('recentmovies', 32005, listitems)
     path = "ActivateWindow(VideoLibrary,plugin://plugin.video.plexbmc/?url=http://10.0.0.10:32400/library/sections/5,return)"
     path2 = "plugin://plugin.video.plexbmc/?url=http://10.0.0.10:32400/library/sections/5"
 
@@ -6083,8 +6036,7 @@ def main():
     global pluginhandle
     pluginhandle = None if not (
         len(sys.argv) >= 1 and sys.argv[1].isdigit()) else int(sys.argv[1])
-    mode = - \
-        1 if not params.get('mode', '').isdigit() else int(params.get('mode'))
+    mode = - 1 if not params.get('mode', '').isdigit() else int(params.get('mode'))
     force = params.get('force', False)
     content = params.get('content', None)
 
