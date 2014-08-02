@@ -24,6 +24,17 @@
     along with PleXBMC Plugin.  If not, see <http://www.gnu.org/licenses/>.
 
 '''
+#######################################################################################
+# autopep8 configuration
+# ----------------------
+# Standard:   -a -a --max-line-length 132  --ignore=E309,E301,E303
+# lib2to3:    -a -a --max-line-length 132  --select=W690
+# Deprecated: --aggressive --select=W6
+#
+# E301 - Put a blank line between a class docstring and its first method declaration
+# E303 - Remove blank lines between a function declaration and its docstring
+# E309 - Put a blank line between a class declaration and its first method declaration
+#######################################################################################
 
 import base64
 import datetime
@@ -267,9 +278,6 @@ g_sessionID = None
 
 
 class Cache:
-
-    '''
-    '''
     @staticmethod
     def read(cachefile):
         if __settings__.getSetting("cache") == "false":
@@ -309,10 +317,8 @@ class Cache:
             created = int(xbmcvfs.Stat(cachefile).st_ctime())
             modified = int(xbmcvfs.Stat(cachefile).st_mtime())
             accessed = int(xbmcvfs.Stat(cachefile).st_atime())
-            printDebug("CACHE [%s]: mod[%s] now[%s] diff[%s]" %
-                       (cachefile, modified, now, now - modified))
-            printDebug("CACHE [%s]: ctd[%s] mod[%s] acc[%s]" %
-                       (cachefile, created, modified, accessed))
+            printDebug("CACHE [%s]: mod[%s] now[%s] diff[%s]" % (cachefile, modified, now, now - modified))
+            printDebug("CACHE [%s]: ctd[%s] mod[%s] acc[%s]" % (cachefile, created, modified, accessed))
 
             if (modified < 0) or (now - modified) > life:
                 printDebug("CACHE [%s]: too old, delete" % cachefile)
@@ -352,9 +358,6 @@ class Cache:
 
 
 class PlexServers:
-
-    '''
-    '''
     @staticmethod
     def discoverAll():
         '''
@@ -577,7 +580,7 @@ class PlexServers:
                     xbmcgui.Dialog().ok(
                         "PleXBMC", "Server [%s] not found" % server)
 
-        except socket.error, msg:
+        except socket.error as msg:
             error = "Server[%s] is offline, or not responding\nReason: %s" % (
                 server, str(msg))
             print "PleXBMC -> %s" % error
@@ -935,7 +938,7 @@ class MyPlexServers:
                 xbmcgui.Dialog().ok("Error", error)
             print error
             return False
-        except socket.error, msg:
+        except socket.error as msg:
             error = "Unable to connect to " + \
                 MYPLEX_SERVER + "\nReason: " + str(msg)
             if suppress is False:
@@ -1039,7 +1042,7 @@ class MyPlexServers:
                 xbmcgui.Dialog().ok(title, error)
             print error
             return ""
-        except socket.error, msg:
+        except socket.error as msg:
             error = "Unable to connect to MyPlex" + "\nReason: " + str(msg)
             if suppress is False:
                 xbmcgui.Dialog().ok(title, error)
@@ -1845,7 +1848,7 @@ class Utility:
                       'TV-14': 1,   # US TV - Teens
                       'TV-MA': 2,   # US TV - Adults
 
-                      'G':  0,      # CAN - kids
+                      'G': 0,      # CAN - kids
                       'PG': 0,      # CAN - kids
                       '14A': 1,     # CAN - teens
                       '18A': 2,     # CAN - Adults
@@ -2597,7 +2600,7 @@ class Commands:
             request = json.dumps({"id": 1,
                                   "jsonrpc": "2.0",
                                   "method": "Player.Open",
-                                  "params": {"item":  {"file": playurl}}})
+                                  "params": {"item": {"file": playurl}}})
             # XXX: Unused variable 'html'
             html = xbmc.executeJSONRPC(request)
             return
@@ -2840,13 +2843,41 @@ class Media:
 
             elif media_type == "music":
 
-                full_data = {'TrackNumber': int(timings.get('index', 0)),
-                             'title': str(timings.get('index', 0)).zfill(2) + ". " + timings.get('title', 'Unknown').encode('utf-8'),
-                             'rating': float(timings.get('rating', 0)),
-                             'album': timings.get('parentTitle', tree.get('parentTitle', '')).encode('utf-8'),
-                             'artist': timings.get('grandparentTitle', tree.get('grandparentTitle', '')).encode('utf-8'),
-                             'duration': int(timings.get('duration', 0)) / 1000,
-                             'thumbnailImage': server.getThumb(timings, server)}
+                full_data = {
+                    'TrackNumber': int(
+                        timings.get(
+                            'index',
+                            0)),
+                    'title': str(
+                        timings.get(
+                            'index',
+                            0)).zfill(2) +
+                    ". " +
+                    timings.get(
+                        'title',
+                        'Unknown').encode('utf-8'),
+                    'rating': float(
+                            timings.get(
+                                'rating',
+                                0)),
+                    'album': timings.get(
+                        'parentTitle',
+                        tree.get(
+                            'parentTitle',
+                            '')).encode('utf-8'),
+                    'artist': timings.get(
+                        'grandparentTitle',
+                        tree.get(
+                            'grandparentTitle',
+                            '')).encode('utf-8'),
+                    'duration': int(
+                        timings.get(
+                            'duration',
+                            0)) /
+                    1000,
+                    'thumbnailImage': server.getThumb(
+                        timings,
+                        server)}
 
                 extra['album'] = timings.get('parentKey')
                 extra['index'] = timings.get('index')
@@ -4311,34 +4342,122 @@ class Skin:
                                (sectionCount), extraData['thumb'] + qToken)
             WINDOW.setProperty("plexbmc.%d.partialpath" % (sectionCount), "ActivateWindow(" + window +
                                ",plugin://plugin.video.plexbmc/?url=http://" + section['address'] + section['path'])
-            WINDOW.setProperty("plexbmc.%d.search" % (sectionCount), "ActivateWindow(%s,plugin://plugin.video.plexbmc/?url=http://%s%s%s&mode=%s%s,return)" %
-                               (window, section['address'], section['path'], "/search?type=1", mode, aToken))
-            WINDOW.setProperty("plexbmc.%d.recent" % (sectionCount), "ActivateWindow(%s,plugin://plugin.video.plexbmc/?url=http://%s%s%s&mode=%s%s,return)" %
-                               (window, section['address'], section['path'], "/recentlyAdded", mode, aToken))
-            WINDOW.setProperty("plexbmc.%d.all" % (sectionCount), "ActivateWindow(%s,plugin://plugin.video.plexbmc/?url=http://%s%s%s&mode=%s%s,return)" %
-                               (window, section['address'], section['path'], "/all", mode, aToken))
-            WINDOW.setProperty("plexbmc.%d.viewed" % (sectionCount), "ActivateWindow(%s,plugin://plugin.video.plexbmc/?url=http://%s%s%s&mode=%s%s,return)" %
-                               (window, section['address'], section['path'], "/recentlyViewed", mode, aToken))
-            WINDOW.setProperty("plexbmc.%d.ondeck" % (sectionCount), "ActivateWindow(%s,plugin://plugin.video.plexbmc/?url=http://%s%s%s&mode=%s%s,return)" %
-                               (window, section['address'], section['path'], "/onDeck", mode, aToken))
-            WINDOW.setProperty("plexbmc.%d.released" % (sectionCount), "ActivateWindow(%s,plugin://plugin.video.plexbmc/?url=http://%s%s%s&mode=%s%s,return)" %
-                               (window, section['address'], section['path'], "/newest", mode, aToken))
+            WINDOW.setProperty(
+                "plexbmc.%d.search" %
+                (sectionCount),
+                "ActivateWindow(%s,plugin://plugin.video.plexbmc/?url=http://%s%s%s&mode=%s%s,return)" %
+                (window,
+                 section['address'],
+                    section['path'],
+                    "/search?type=1",
+                    mode,
+                    aToken))
+            WINDOW.setProperty(
+                "plexbmc.%d.recent" %
+                (sectionCount),
+                "ActivateWindow(%s,plugin://plugin.video.plexbmc/?url=http://%s%s%s&mode=%s%s,return)" %
+                (window,
+                 section['address'],
+                    section['path'],
+                    "/recentlyAdded",
+                    mode,
+                    aToken))
+            WINDOW.setProperty(
+                "plexbmc.%d.all" %
+                (sectionCount),
+                "ActivateWindow(%s,plugin://plugin.video.plexbmc/?url=http://%s%s%s&mode=%s%s,return)" %
+                (window,
+                 section['address'],
+                    section['path'],
+                    "/all",
+                    mode,
+                    aToken))
+            WINDOW.setProperty(
+                "plexbmc.%d.viewed" %
+                (sectionCount),
+                "ActivateWindow(%s,plugin://plugin.video.plexbmc/?url=http://%s%s%s&mode=%s%s,return)" %
+                (window,
+                 section['address'],
+                    section['path'],
+                    "/recentlyViewed",
+                    mode,
+                    aToken))
+            WINDOW.setProperty(
+                "plexbmc.%d.ondeck" %
+                (sectionCount),
+                "ActivateWindow(%s,plugin://plugin.video.plexbmc/?url=http://%s%s%s&mode=%s%s,return)" %
+                (window,
+                 section['address'],
+                    section['path'],
+                    "/onDeck",
+                    mode,
+                    aToken))
+            WINDOW.setProperty(
+                "plexbmc.%d.released" %
+                (sectionCount),
+                "ActivateWindow(%s,plugin://plugin.video.plexbmc/?url=http://%s%s%s&mode=%s%s,return)" %
+                (window,
+                 section['address'],
+                    section['path'],
+                    "/newest",
+                    mode,
+                    aToken))
             WINDOW.setProperty("plexbmc.%d.shared" % (sectionCount), "false")
 
             if section['type'] == "artist":
-                WINDOW.setProperty("plexbmc.%d.album" % (sectionCount), "ActivateWindow(%s,plugin://plugin.video.plexbmc/?url=http://%s%s%s&mode=%s%s,return)" % (
-                    window, section['address'], section['path'], "/albums", mode, aToken))
-                WINDOW.setProperty("plexbmc.%d.search" % (sectionCount), "ActivateWindow(%s,plugin://plugin.video.plexbmc/?url=http://%s%s%s&mode=%s%s,return)" % (
-                    window, section['address'], section['path'], "/search?type=10", mode, aToken))
+                WINDOW.setProperty(
+                    "plexbmc.%d.album" %
+                    (sectionCount),
+                    "ActivateWindow(%s,plugin://plugin.video.plexbmc/?url=http://%s%s%s&mode=%s%s,return)" %
+                    (window,
+                        section['address'],
+                        section['path'],
+                        "/albums",
+                        mode,
+                        aToken))
+                WINDOW.setProperty(
+                    "plexbmc.%d.search" %
+                    (sectionCount),
+                    "ActivateWindow(%s,plugin://plugin.video.plexbmc/?url=http://%s%s%s&mode=%s%s,return)" %
+                    (window,
+                        section['address'],
+                        section['path'],
+                        "/search?type=10",
+                        mode,
+                        aToken))
             elif section['type'] == "photo":
-                WINDOW.setProperty("plexbmc.%d.year" % (sectionCount), "ActivateWindow(%s,plugin://plugin.video.plexbmc/?url=http://%s%s%s&mode=%s%s,return)" % (
-                    window, section['address'], section['path'], "/year", mode, aToken))
+                WINDOW.setProperty(
+                    "plexbmc.%d.year" %
+                    (sectionCount),
+                    "ActivateWindow(%s,plugin://plugin.video.plexbmc/?url=http://%s%s%s&mode=%s%s,return)" %
+                    (window,
+                        section['address'],
+                        section['path'],
+                        "/year",
+                        mode,
+                        aToken))
             elif section['type'] == "show":
-                WINDOW.setProperty("plexbmc.%d.search" % (sectionCount), "ActivateWindow(%s,plugin://plugin.video.plexbmc/?url=http://%s%s%s&mode=%s%s,return)" % (
-                    window, section['address'], section['path'], "/search?type=4", mode, aToken))
+                WINDOW.setProperty(
+                    "plexbmc.%d.search" %
+                    (sectionCount),
+                    "ActivateWindow(%s,plugin://plugin.video.plexbmc/?url=http://%s%s%s&mode=%s%s,return)" %
+                    (window,
+                        section['address'],
+                        section['path'],
+                        "/search?type=4",
+                        mode,
+                        aToken))
             elif section['type'] == "movie":
-                WINDOW.setProperty("plexbmc.%d.search" % (sectionCount), "ActivateWindow(%s,plugin://plugin.video.plexbmc/?url=http://%s%s%s&mode=%s%s,return)" % (
-                    window, section['address'], section['path'], "/search?type=1", mode, aToken))
+                WINDOW.setProperty(
+                    "plexbmc.%d.search" %
+                    (sectionCount),
+                    "ActivateWindow(%s,plugin://plugin.video.plexbmc/?url=http://%s%s%s&mode=%s%s,return)" %
+                    (window,
+                        section['address'],
+                        section['path'],
+                        "/search?type=1",
+                        mode,
+                        aToken))
 
             printDebug(
                 "Building window properties index [" + str(sectionCount) + "] which is [" + section['title'] + "]")
@@ -4351,8 +4470,12 @@ class Skin:
                                (sectionCount), "Shared...")
             WINDOW.setProperty("plexbmc.%d.subtitle" %
                                (sectionCount), "Shared")
-            WINDOW.setProperty("plexbmc.%d.path" % (
-                sectionCount), "ActivateWindow(VideoLibrary,plugin://plugin.video.plexbmc/?url=/&mode=" + str(_MODE_SHARED_ALL) + ",return)")
+            WINDOW.setProperty(
+                "plexbmc.%d.path" %
+                (sectionCount),
+                "ActivateWindow(VideoLibrary,plugin://plugin.video.plexbmc/?url=/&mode=" +
+                str(_MODE_SHARED_ALL) +
+                ",return)")
             WINDOW.setProperty("plexbmc.%d.type" % (sectionCount), "movie")
             WINDOW.setProperty("plexbmc.%d.shared" % (sectionCount), "true")
             sectionCount += 1
@@ -4364,8 +4487,12 @@ class Skin:
                                    (sectionCount), "Shared...")
                 WINDOW.setProperty("plexbmc.%d.subtitle" %
                                    (sectionCount), "Shared")
-                WINDOW.setProperty("plexbmc.%d.path" % (
-                    sectionCount), "ActivateWindow(VideoLibrary,plugin://plugin.video.plexbmc/?url=/&mode=" + str(_MODE_SHARED_MOVIES) + ",return)")
+                WINDOW.setProperty(
+                    "plexbmc.%d.path" %
+                    (sectionCount),
+                    "ActivateWindow(VideoLibrary,plugin://plugin.video.plexbmc/?url=/&mode=" +
+                    str(_MODE_SHARED_MOVIES) +
+                    ",return)")
                 WINDOW.setProperty("plexbmc.%d.type" % (sectionCount), "movie")
                 WINDOW.setProperty(
                     "plexbmc.%d.shared" % (sectionCount), "true")
@@ -4376,8 +4503,12 @@ class Skin:
                                    (sectionCount), "Shared...")
                 WINDOW.setProperty("plexbmc.%d.subtitle" %
                                    (sectionCount), "Shared")
-                WINDOW.setProperty("plexbmc.%d.path" % (
-                    sectionCount), "ActivateWindow(VideoLibrary,plugin://plugin.video.plexbmc/?url=/&mode=" + str(_MODE_SHARED_SHOWS) + ",return)")
+                WINDOW.setProperty(
+                    "plexbmc.%d.path" %
+                    (sectionCount),
+                    "ActivateWindow(VideoLibrary,plugin://plugin.video.plexbmc/?url=/&mode=" +
+                    str(_MODE_SHARED_SHOWS) +
+                    ",return)")
                 WINDOW.setProperty("plexbmc.%d.type" % (sectionCount), "show")
                 WINDOW.setProperty(
                     "plexbmc.%d.shared" % (sectionCount), "true")
@@ -4388,8 +4519,12 @@ class Skin:
                                    (sectionCount), "Shared...")
                 WINDOW.setProperty("plexbmc.%d.subtitle" %
                                    (sectionCount), "Shared")
-                WINDOW.setProperty("plexbmc.%d.path" % (
-                    sectionCount), "ActivateWindow(MusicFiles,plugin://plugin.video.plexbmc/?url=/&mode=" + str(_MODE_SHARED_MUSIC) + ",return)")
+                WINDOW.setProperty(
+                    "plexbmc.%d.path" %
+                    (sectionCount),
+                    "ActivateWindow(MusicFiles,plugin://plugin.video.plexbmc/?url=/&mode=" +
+                    str(_MODE_SHARED_MUSIC) +
+                    ",return)")
                 WINDOW.setProperty(
                     "plexbmc.%d.type" % (sectionCount), "artist")
                 WINDOW.setProperty(
@@ -4401,8 +4536,12 @@ class Skin:
                                    (sectionCount), "Shared...")
                 WINDOW.setProperty("plexbmc.%d.subtitle" %
                                    (sectionCount), "Shared")
-                WINDOW.setProperty("plexbmc.%d.path" % (
-                    sectionCount), "ActivateWindow(Pictures,plugin://plugin.video.plexbmc/?url=/&mode=" + str(_MODE_SHARED_PHOTOS) + ",return)")
+                WINDOW.setProperty(
+                    "plexbmc.%d.path" %
+                    (sectionCount),
+                    "ActivateWindow(Pictures,plugin://plugin.video.plexbmc/?url=/&mode=" +
+                    str(_MODE_SHARED_PHOTOS) +
+                    ",return)")
                 WINDOW.setProperty("plexbmc.%d.type" % (sectionCount), "photo")
                 WINDOW.setProperty(
                     "plexbmc.%d.shared" % (sectionCount), "true")
@@ -4421,8 +4560,16 @@ class Skin:
 
             if g_channelview == "true":
                 WINDOW.setProperty("plexbmc.channel", "1")
-                WINDOW.setProperty("plexbmc.%d.server.channel" % (serverCount), "ActivateWindow(VideoLibrary,plugin://plugin.video.plexbmc/?url=http://" + server[
-                                   'server'] + ":" + server['port'] + "/system/plugins/all&mode=21" + aToken + ",return)")
+                WINDOW.setProperty(
+                    "plexbmc.%d.server.channel" %
+                    (serverCount),
+                    "ActivateWindow(VideoLibrary,plugin://plugin.video.plexbmc/?url=http://" +
+                    server['server'] +
+                    ":" +
+                    server['port'] +
+                    "/system/plugins/all&mode=21" +
+                    aToken +
+                    ",return)")
             else:
                 WINDOW.clearProperty("plexbmc.channel")
                 WINDOW.setProperty("plexbmc.%d.server.video" % (
@@ -4477,8 +4624,9 @@ class Skin:
         WINDOW.setProperty("plexbmc.numServers", str(numOfServers))
         if __settings__.getSetting('myplex_user') != '':
             WINDOW.setProperty(
-                "plexbmc.queue", "ActivateWindow(VideoLibrary,plugin://plugin.video.plexbmc/?url=http://myplexqueue&mode=24,return)")
-            WINDOW.setProperty("plexbmc.myplex",  "1")
+                "plexbmc.queue",
+                "ActivateWindow(VideoLibrary,plugin://plugin.video.plexbmc/?url=http://myplexqueue&mode=24,return)")
+            WINDOW.setProperty("plexbmc.myplex", "1")
         else:
             WINDOW.clearProperty("plexbmc.myplex")
 
@@ -4613,16 +4761,51 @@ class Skin:
             listitem.setProperty('type', section['type'])
             listitem.setProperty('partial', "ActivateWindow(" + window +
                                  ",plugin://plugin.video.plexbmc/?url=http://" + section['address'] + section['path'])
-            listitem.setProperty('search', "ActivateWindow(%s,plugin://plugin.video.plexbmc/?url=http://%s%s%s&mode=%s%s,return)" % (
-                window, section['address'], section['path'], "/search?type=1", mode, aToken))
-            listitem.setProperty('recent', "ActivateWindow(%s,plugin://plugin.video.plexbmc/?url=http://%s%s%s&mode=%s%s,return)" % (
-                window, section['address'], section['path'], "/recentlyAdded", mode, aToken))
-            listitem.setProperty('viewed', "ActivateWindow(%s,plugin://plugin.video.plexbmc/?url=http://%s%s%s&mode=%s%s,return)" % (
-                window, section['address'], section['path'], "/recentlyViewed", mode, aToken))
-            listitem.setProperty('ondeck', "ActivateWindow(%s,plugin://plugin.video.plexbmc/?url=http://%s%s%s&mode=%s%s,return)" % (
-                window, section['address'], section['path'], "/onDeck", mode, aToken))
-            listitem.setProperty('newest', "ActivateWindow(%s,plugin://plugin.video.plexbmc/?url=http://%s%s%s&mode=%s%s,return)" % (
-                window, section['address'], section['path'], "/newest", mode, aToken))
+            listitem.setProperty(
+                'search',
+                "ActivateWindow(%s,plugin://plugin.video.plexbmc/?url=http://%s%s%s&mode=%s%s,return)" %
+                (window,
+                 section['address'],
+                    section['path'],
+                    "/search?type=1",
+                    mode,
+                    aToken))
+            listitem.setProperty(
+                'recent',
+                "ActivateWindow(%s,plugin://plugin.video.plexbmc/?url=http://%s%s%s&mode=%s%s,return)" %
+                (window,
+                 section['address'],
+                    section['path'],
+                    "/recentlyAdded",
+                    mode,
+                    aToken))
+            listitem.setProperty(
+                'viewed',
+                "ActivateWindow(%s,plugin://plugin.video.plexbmc/?url=http://%s%s%s&mode=%s%s,return)" %
+                (window,
+                 section['address'],
+                    section['path'],
+                    "/recentlyViewed",
+                    mode,
+                    aToken))
+            listitem.setProperty(
+                'ondeck',
+                "ActivateWindow(%s,plugin://plugin.video.plexbmc/?url=http://%s%s%s&mode=%s%s,return)" %
+                (window,
+                 section['address'],
+                    section['path'],
+                    "/onDeck",
+                    mode,
+                    aToken))
+            listitem.setProperty(
+                'newest',
+                "ActivateWindow(%s,plugin://plugin.video.plexbmc/?url=http://%s%s%s&mode=%s%s,return)" %
+                (window,
+                 section['address'],
+                    section['path'],
+                    "/newest",
+                    mode,
+                    aToken))
             listitem.setProperty('shared', "false")
 
             listitem.setProperty('node.target', window)
@@ -4917,7 +5100,8 @@ class Skin:
         # Gather some data and set the window properties
         printDebug("== ENTER: fullShelf ==", False)
 
-        if __settings__.getSetting('homeshelf') == '3' or ((__settings__.getSetting('movieShelf') == "false" and __settings__.getSetting('tvShelf') == "false" and __settings__.getSetting('musicShelf') == "false")):
+        if __settings__.getSetting('homeshelf') == '3' or ((__settings__.getSetting('movieShelf') == "false" and __settings__.getSetting(
+                'tvShelf') == "false" and __settings__.getSetting('musicShelf') == "false")):
             printDebug("Disabling all shelf items")
             server_list.clearShelf()
             server_list.clearOnDeckShelf()
@@ -5009,7 +5193,11 @@ class Skin:
                             if eachitem.get("type", "") == "episode":
                                 # season identifier
                                 key = int(eachitem.get("parentRatingKey"))
-                                if key in ep_helper or ((__settings__.getSetting('hide_watched_recent_items') == 'true' and int(eachitem.get("viewCount", 0)) > 0)):
+                                if key in ep_helper or (
+                                    (__settings__.getSetting('hide_watched_recent_items') == 'true' and int(
+                                        eachitem.get(
+                                            "viewCount",
+                                            0)) > 0)):
                                     pass
                                 else:
                                     recent_list[full_count] = (
@@ -5223,8 +5411,13 @@ class Skin:
                     WINDOW.clearProperty("Plexbmc.LatestEpisode.1.Path")
                     continue
 
-                s_url = "ActivateWindow(Videos, plugin://plugin.video.plexbmc?url=%s&mode=%s%s, return)" % (
-                    Utility.getLinkURL('http://' + server_address, media, server_address, season_shelf=True), _MODE_TVEPISODES, aToken)
+                s_url = "ActivateWindow(Videos, plugin://plugin.video.plexbmc?url=%s&mode=%s%s, return)" % (Utility.getLinkURL(
+                    'http://' + server_address,
+                    media,
+                    server_address,
+                    season_shelf=True),
+                    _MODE_TVEPISODES,
+                    aToken)
                 s_thumb = server_list.getShelfThumb(
                     media, server_address, seasonThumb=1) + aToken
 
@@ -5741,8 +5934,13 @@ class Skin:
                     mode = _MODE_GETCONTENT
                     channel_window = "VideoLibrary"
 
-                c_url = "ActivateWindow(%s, plugin://plugin.video.plexbmc?url=%s&mode=%s%s)" % (channel_window, Utility.getLinkURL(
-                    'http://' + server_details['server'] + ":" + server_details['port'], media, server_details['server'] + ":" + server_details['port']), mode, aToken)
+                c_url = "ActivateWindow(%s, plugin://plugin.video.plexbmc?url=%s&mode=%s%s)" % (channel_window,
+                                                                                                Utility.getLinkURL(
+                                                                                                    'http://' + server_details['server'] + ":" + server_details['port'],
+                                                                                                    media,
+                                                                                                    server_details['server'] + ":" + server_details['port']),
+                                                                                                mode,
+                                                                                                aToken)
                 pms_thumb = str(media.get('thumb', ''))
 
                 if pms_thumb.startswith('/'):
@@ -5996,7 +6194,7 @@ def main():
             print "PleXBMC -> token: " + str(_PARAM_TOKEN)
 
         # Run a function based on the mode variable that was passed in the URL
-        if mode is None or param_url is None or len(param_url) < 1:
+        if (mode is None) or (param_url is None) or (len(param_url) < 1):
             Sections.displaySections()
 
         elif mode == _MODE_GETCONTENT:
