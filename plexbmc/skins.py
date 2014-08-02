@@ -4,9 +4,14 @@ import xbmcgui  # pylint: disable=F0401
 import xbmcplugin  # pylint: disable=F0401
 
 import plexbmc
-from plexbmc import servers
+#from . import gui
 #from . import servers
 
+import plexbmc.gui
+import plexbmc.servers
+import plexbmc.main
+#Skins = plexbmc.skins.Skins
+#Skins = plexbmc.skins.Skins
 
 class Skin:
     '''
@@ -136,13 +141,13 @@ class Skin:
         hide_shared = plexbmc.__settings__.getSetting('hide_shared')
 
         if server_list is None:
-            server_list = servers.PlexServers.discoverAll()
+            server_list = plexbmc.servers.PlexServers.discoverAll()
 
         # For each of the servers we have identified
-        for section in plexbmc.Sections.getAllSections(server_list):
+        for section in plexbmc.gui.Sections.getAllSections(server_list):
             extraData = {
-                'fanart_image': plexbmc.Media.getFanart(
-                    section, section['address']), 'thumb': plexbmc.Media.getFanart(
+                'fanart_image': plexbmc.gui.Media.getFanart(
+                    section, section['address']), 'thumb': plexbmc.gui.Media.getFanart(
                     section, section['address'], False)}
 
             # Determine what we are going to do process after a link is
@@ -174,8 +179,8 @@ class Skin:
                 window = "Pictures"
                 mode = plexbmc._MODE_PHOTOS
 
-            aToken = servers.MyPlexServers.getAuthDetails(section)
-            qToken = servers.MyPlexServers.getAuthDetails(section, prefix='?')
+            aToken = plexbmc.servers.MyPlexServers.getAuthDetails(section)
+            qToken = plexbmc.servers.MyPlexServers.getAuthDetails(section, prefix='?')
 
             if plexbmc.g_secondary == "true":
                 mode = plexbmc._MODE_GETCONTENT
@@ -395,8 +400,8 @@ class Skin:
             if server['class'] == "secondary":
                 continue
 
-            aToken = servers.MyPlexServers.getAuthDetails(server)
-            qToken = servers.MyPlexServers.getAuthDetails(server, prefix='?')
+            aToken = plexbmc.servers.MyPlexServers.getAuthDetails(server)
+            qToken = plexbmc.servers.MyPlexServers.getAuthDetails(server, prefix='?')
 
             if plexbmc.g_channelview == "true":
                 WINDOW.setProperty("plexbmc.channel", "1")
@@ -520,11 +525,11 @@ class Skin:
         shared_flag = {}
         hide_shared = plexbmc.__settings__.getSetting('hide_shared')
 
-        server_list = servers.PlexServers.discoverAll()
+        server_list = plexbmc.servers.PlexServers.discoverAll()
         plexbmc.printDebug("Using list of " + str(len(server_list)) + " servers: " + str(server_list))
 
         # For each of the servers we have identified
-        sections = plexbmc.Sections.getAllSections(server_list)
+        sections = plexbmc.gui.Sections.getAllSections(server_list)
         plexbmc.printDebug("Total sections: " + str(len(sections)), False)
 
         listitems = list()
@@ -535,7 +540,7 @@ class Skin:
             plexbmc.printDebug("=/section=", False)
 
             # XXX: Unused variable 'extraData'
-            extraData = {'fanart_image': plexbmc.Media.getFanart(section, section['address']), 'thumb': plexbmc.g_thumb}
+            extraData = {'fanart_image': plexbmc.gui.Media.getFanart(section, section['address']), 'thumb': plexbmc.g_thumb}
 
             # Determine what we are going to do process after a link is
             # selected by the user, based on the content we find
@@ -576,10 +581,10 @@ class Skin:
                 window = "Videos"
                 mode = plexbmc._MODE_PHOTOS
 
-            aToken = servers.MyPlexServers.getAuthDetails(section)
+            aToken = plexbmc.servers.MyPlexServers.getAuthDetails(section)
 
             # XXX: Unused variable 'qToken'
-            qToken = servers.MyPlexServers.getAuthDetails(section, prefix='?')
+            qToken = plexbmc.servers.MyPlexServers.getAuthDetails(section, prefix='?')
 
             print 'g_secondary: %s' % plexbmc.g_secondary
             if plexbmc.g_secondary == "true":
@@ -857,7 +862,7 @@ class Skin:
             printDebug("== ENTER: Queue Shelf ==", False)
             aToken = getMyPlexToken()
             myplex_server = getMyPlexURL('/pms/playlists/queue/all')
-            root = etree.fromstring(myplex_server)
+            root = plexbmc.etree.fromstring(myplex_server)
             server_address = getMasterServer()['address']
             queue_count = 1
 
@@ -954,8 +959,8 @@ class Skin:
             #xbmcplugin.addDirectoryItems(300, listitems)
             # xbmcplugin.endOfDirectory(handle=container_id)
         else:
-            xbmcplugin.addDirectoryItems(plexbmc.PleXBMC.getHandle(), listitems)
-            xbmcplugin.endOfDirectory(handle=plexbmc.PleXBMC.getHandle())
+            xbmcplugin.addDirectoryItems(plexbmc.main.PleXBMC.getHandle(), listitems)
+            xbmcplugin.endOfDirectory(handle=plexbmc.main.PleXBMC.getHandle())
             #xbmcplugin.endOfDirectory(pluginhandle, succeeded=True, updateListing=False, cacheToDisc=False)
 
     @staticmethod
@@ -987,7 +992,7 @@ class Skin:
         full_count = 0
 
         if server_list == {}:
-            server_list = servers.PlexServers.discoverAll()
+            server_list = plexbmc.servers.PlexServers.discoverAll()
 
         if server_list == {}:
             xbmc.executebuiltin("XBMC.Notification(Unable to see any media servers,)")
@@ -1014,10 +1019,10 @@ class Skin:
 
                 #global token
                 token = server_details.get('token', '')
-                aToken = servers.MyPlexServers.getAuthDetails({'token': token})
+                aToken = plexbmc.servers.MyPlexServers.getAuthDetails({'token': token})
                 qToken = '?' + aToken
 
-                sections = plexbmc.Sections.getAllSections(server_list)
+                sections = plexbmc.gui.Sections.getAllSections(server_list)
 
                 # XXX: Unused variable 'ra_log_count'
                 ra_log_count = 1
@@ -1032,11 +1037,11 @@ class Skin:
                     for section in sections:
                         recent_url = section.get('address') + section.get("path") + "/recentlyAdded"
                         #token = section.get('token', '')
-                        tree = servers.PlexServers.getURL(recent_url)
+                        tree = plexbmc.servers.PlexServers.getURL(recent_url)
                         tree = plexbmc.etree.fromstring(tree)
                         token = server_details.get('token', '')
                         '''
-                        eetee = etree.ElementTree()
+                        eetee = plexbmc.etree.ElementTree()
                         eetee._setroot(tree)
                         logfile = PLUGINPATH+"/RecentlyAdded"+ str(ra_log_count) + ".xml"
                         logfileh = open(logfile, "w")
@@ -1085,11 +1090,11 @@ class Skin:
                     for section in sections:
                         ondeck_url = section.get('address') + section.get("path") + "/onDeck"
                         #token = section.get('token', '')
-                        tree = servers.PlexServers.getURL(ondeck_url)
-                        tree = plexbmc.etree.fromstring(tree)
+                        tree = plexbmc.servers.PlexServers.getURL(ondeck_url)
+                        tree = plexbmc.plexbmc.etree.fromstring(tree)
                         token = server_details.get('token', '')
                         '''
-                        eetee = etree.ElementTree()
+                        eetee = plexbmc.etree.ElementTree()
                         eetee._setroot(tree)
                         logfile = PLUGINPATH+"/OnDeck"+ str(deck_file_count) + ".xml"
                         logfileh = open(logfile, "w")
@@ -1126,7 +1131,7 @@ class Skin:
                     WINDOW.clearProperty("Plexbmc.LatestMovie.1.Path")
                     continue
                 if plexbmc.__settings__.getSetting('hide_watched_recent_items') == 'false' or media.get("viewCount", 0) == 0:
-                    m_url = "plugin://plugin.video.plexbmc?url=%s&mode=%s&t=%s%s" % (plexbmc.Utility.getLinkURL(
+                    m_url = "plugin://plugin.video.plexbmc?url=%s&mode=%s&t=%s%s" % (plexbmc.gui.Utility.getLinkURL(
                         'http://' + server_address,
                         media,
                         server_address),
@@ -1182,7 +1187,7 @@ class Skin:
                     WINDOW.clearProperty("Plexbmc.LatestEpisode.1.Path")
                     continue
 
-                s_url = "ActivateWindow(VideoLibrary, plugin://plugin.video.plexbmc?url=%s&mode=%s%s, return)" % (plexbmc.Utility.getLinkURL(
+                s_url = "ActivateWindow(VideoLibrary, plugin://plugin.video.plexbmc?url=%s&mode=%s%s, return)" % (plexbmc.gui.Utility.getLinkURL(
                     'http://' + server_address,
                     media,
                     server_address),
@@ -1224,7 +1229,7 @@ class Skin:
                     continue
                 plexbmc.printDebug("Found a recent album entry")
 
-                s_url = "ActivateWindow(MusicFiles, plugin://plugin.video.plexbmc?url=%s&mode=%s%s, return)" % (plexbmc.Utility.getLinkURL(
+                s_url = "ActivateWindow(MusicFiles, plugin://plugin.video.plexbmc?url=%s&mode=%s%s, return)" % (plexbmc.gui.Utility.getLinkURL(
                     'http://' + server_address,
                     media,
                     server_address),
@@ -1271,7 +1276,7 @@ class Skin:
                     WINDOW.clearProperty("Plexbmc.LatestEpisode.1.Path")
                     continue
 
-                s_url = "ActivateWindow(Videos, plugin://plugin.video.plexbmc?url=%s&mode=%s%s, return)" % (plexbmc.Utility.getLinkURL(
+                s_url = "ActivateWindow(Videos, plugin://plugin.video.plexbmc?url=%s&mode=%s%s, return)" % (plexbmc.gui.Utility.getLinkURL(
                     'http://' + server_address,
                     media,
                     server_address,
@@ -1340,7 +1345,7 @@ class Skin:
                     WINDOW.clearProperty("Plexbmc.OnDeckMovie.1.Path")
                     continue
 
-                m_url = "plugin://plugin.video.plexbmc?url=%s&mode=%s&t=%s%s" % (plexbmc.Utility.getLinkURL(
+                m_url = "plugin://plugin.video.plexbmc?url=%s&mode=%s&t=%s%s" % (plexbmc.gui.Utility.getLinkURL(
                     'http://' + server_address,
                     media,
                     server_address),
@@ -1380,7 +1385,7 @@ class Skin:
                     WINDOW.clearProperty("Plexbmc.OnDeckEpisode.1.Path")
                     continue
 
-                s_url = "ActivateWindow(VideoLibrary, plugin://plugin.video.plexbmc?url=%s&mode=%s%s, return)" % (plexbmc.Utility.getLinkURL(
+                s_url = "ActivateWindow(VideoLibrary, plugin://plugin.video.plexbmc?url=%s&mode=%s%s, return)" % (plexbmc.gui.Utility.getLinkURL(
                     'http://' + server_address,
                     media,
                     server_address),
@@ -1416,7 +1421,7 @@ class Skin:
                     WINDOW.clearProperty("Plexbmc.OnDeckEpisode.1.Path")
                     continue
 
-                s_url = "PlayMedia(plugin://plugin.video.plexbmc?url=%s&mode=%s&t=%s%s)" % (plexbmc.Utility.getLinkURL(
+                s_url = "PlayMedia(plugin://plugin.video.plexbmc?url=%s&mode=%s&t=%s%s)" % (plexbmc.gui.Utility.getLinkURL(
                     'http://' + server_address,
                     media,
                     server_address),
@@ -1499,7 +1504,7 @@ class Skin:
         full_count = 0
 
         if server_list is None:
-            server_list = servers.PlexServers.discoverAll()
+            server_list = plexbmc.servers.PlexServers.discoverAll()
 
         if server_list == {}:
             xbmc.executebuiltin("XBMC.Notification(Unable to see any media servers,)")
@@ -1522,10 +1527,10 @@ class Skin:
 
             #global token
             token = server_details.get('token', '')
-            aToken = servers.MyPlexServers.getAuthDetails({'token': token})
-            qToken = servers.MyPlexServers.getAuthDetails({'token': token}, prefix='?')
+            aToken = plexbmc.servers.MyPlexServers.getAuthDetails({'token': token})
+            qToken = plexbmc.servers.MyPlexServers.getAuthDetails({'token': token}, prefix='?')
 
-            tree = plexbmc.Utility.getXML('http://' + server_details['server'] + ":" + server_details['port'] + endpoint)
+            tree = plexbmc.gui.Utility.getXML('http://' + server_details['server'] + ":" + server_details['port'] + endpoint)
             if tree is None:
                 xbmc.executebuiltin("XBMC.Notification(Unable to contact server: " + server_details['serverName'] + ",)")
                 server_list.clearShelf()
@@ -1555,20 +1560,20 @@ class Skin:
                 if plexbmc.__settings__.getSetting('movieShelf') == "false":
                     WINDOW.clearProperty("Plexbmc.LatestMovie.1.Path")
                     continue
-                if not plexbmc.Utility.displayContent(acceptable_level, media.get('contentRating')):
+                if not plexbmc.gui.Utility.displayContent(acceptable_level, media.get('contentRating')):
                     continue
                 if media.get('librarySectionID') == library_filter:
                     plexbmc.printDebug("SKIPPING: Library Filter match: %s = %s " % (library_filter, media.get('librarySectionID')))
                     continue
 
-                m_url = "plugin://plugin.video.plexbmc?url=%s&mode=%s&t=%s%s" % (plexbmc.Utility.getLinkURL(
+                m_url = "plugin://plugin.video.plexbmc?url=%s&mode=%s&t=%s%s" % (plexbmc.gui.Utility.getLinkURL(
                     'http://' + server_address,
                     media,
                     server_address),
                     plexbmc._MODE_PLAYSHELF,
                     randomNumber,
                     aToken)
-                m_thumb = plexbmc.Media.getThumb(media, server_address)
+                m_thumb = plexbmc.gui.Media.getThumb(media, server_address)
 
                 WINDOW.setProperty("Plexbmc.LatestMovie.%s.Path" % movieCount, m_url)
                 WINDOW.setProperty("Plexbmc.LatestMovie.%s.Title" % movieCount, media.get('title', 'Unknown').encode('UTF-8'))
@@ -1586,13 +1591,13 @@ class Skin:
                     WINDOW.clearProperty("Plexbmc.LatestEpisode.1.Path")
                     continue
 
-                s_url = "ActivateWindow(VideoLibrary, plugin://plugin.video.plexbmc?url=%s&mode=%s%s, return)" % (plexbmc.Utility.getLinkURL(
+                s_url = "ActivateWindow(VideoLibrary, plugin://plugin.video.plexbmc?url=%s&mode=%s%s, return)" % (plexbmc.gui.Utility.getLinkURL(
                     'http://' + server_address,
                     media,
                     server_address),
                     plexbmc._MODE_TVEPISODES,
                     aToken)
-                s_thumb = plexbmc.Media.getThumb(media, server_address)
+                s_thumb = plexbmc.gui.Media.getThumb(media, server_address)
 
                 WINDOW.setProperty("Plexbmc.LatestEpisode.%s.Path" % seasonCount, s_url)
                 WINDOW.setProperty("Plexbmc.LatestEpisode.%s.EpisodeTitle" % seasonCount, '')
@@ -1615,13 +1620,13 @@ class Skin:
                     continue
                 plexbmc.printDebug("Found a recent album entry")
 
-                s_url = "ActivateWindow(MusicFiles, plugin://plugin.video.plexbmc?url=%s&mode=%s%s, return)" % (plexbmc.Utility.getLinkURL(
+                s_url = "ActivateWindow(MusicFiles, plugin://plugin.video.plexbmc?url=%s&mode=%s%s, return)" % (plexbmc.gui.Utility.getLinkURL(
                     'http://' + server_address,
                     media,
                     server_address),
                     plexbmc._MODE_TRACKS,
                     aToken)
-                s_thumb = plexbmc.Media.getThumb(media, server_address)
+                s_thumb = plexbmc.gui.Media.getThumb(media, server_address)
 
                 WINDOW.setProperty("Plexbmc.LatestAlbum.%s.Path" % musicCount, s_url)
                 WINDOW.setProperty("Plexbmc.LatestAlbum.%s.Title" % musicCount, media.get('title', 'Unknown').encode('UTF-8'))
@@ -1645,7 +1650,7 @@ class Skin:
                     WINDOW.clearProperty("Plexbmc.LatestEpisode.1.Path")
                     continue
 
-                s_url = "PlayMedia(plugin://plugin.video.plexbmc?url=%s&mode=%s%s)" % (plexbmc.Utility.getLinkURL(
+                s_url = "PlayMedia(plugin://plugin.video.plexbmc?url=%s&mode=%s%s)" % (plexbmc.gui.Utility.getLinkURL(
                     'http://' + server_address,
                     media,
                     server_address),
@@ -1780,7 +1785,7 @@ class Skin:
         channelCount = 1
 
         if server_list is None:
-            server_list = servers.PlexServers.discoverAll()
+            server_list = plexbmc.servers.PlexServers.discoverAll()
 
         if server_list == {}:
             xbmc.executebuiltin("XBMC.Notification(Unable to see any media servers,)")
@@ -1796,16 +1801,16 @@ class Skin:
 
             #global token
             token = server_details.get('token', '')
-            aToken = servers.MyPlexServers.getAuthDetails({'token': token})
+            aToken = plexbmc.servers.MyPlexServers.getAuthDetails({'token': token})
 
             # XXX: Unused variable 'qToken'
-            qToken = servers.MyPlexServers.getAuthDetails({'token': token}, prefix='?')
+            qToken = plexbmc.servers.MyPlexServers.getAuthDetails({'token': token}, prefix='?')
 
             if plexbmc.__settings__.getSetting('channelShelf') == "false" or plexbmc.__settings__.getSetting('homeshelf') == '3':
                 WINDOW.clearProperty("Plexbmc.LatestChannel.1.Path")
                 return
 
-            tree = plexbmc.Utility.getXML(
+            tree = plexbmc.gui.Utility.getXML(
                 'http://' +
                 server_details['server'] +
                 ":" +
@@ -1835,7 +1840,7 @@ class Skin:
                     channel_window = "VideoLibrary"
 
                 c_url = "ActivateWindow(%s, plugin://plugin.video.plexbmc?url=%s&mode=%s%s)" % (channel_window,
-                                                                                                plexbmc.Utility.getLinkURL(
+                                                                                                plexbmc.gui.Utility.getLinkURL(
                                                                                                     'http://' + server_details['server'] + ":" + server_details['port'],
                                                                                                     media,
                                                                                                     server_details['server'] + ":" + server_details['port']),
@@ -1914,7 +1919,33 @@ class Skin:
             if plexbmc.__settings__.getSetting("fullres_thumbs") != "false":
                 return 'http://' + server + thumbnail
             else:
-                return plexbmc.Utility.photoTranscode(server, 'http://localhost:32400' + thumbnail, width, height)
+                return plexbmc.gui.Utility.photoTranscode(server, 'http://localhost:32400' + thumbnail, width, height)
 
         else:
             return plexbmc.g_thumb
+
+def jason_test():
+    listitems = list()
+    #self.section = 'Hey there'
+    xbmcplugin.setContent(plexbmc.main.PleXBMC.getHandle(), 'movies')
+    #self.parse_movies('recentmovies', 32005, listitems)
+    path = "ActivateWindow(VideoLibrary,plugin://plugin.video.plexbmc/?url=http://10.0.0.10:32400/library/sections/5,return)"
+    path2 = "plugin://plugin.video.plexbmc/?url=http://10.0.0.10:32400/library/sections/5"
+
+    print 'Entering jason_test'
+    # XXX:
+    #liz = xbmcgui.ListItem('JASON+: '+self.section)
+    liz = xbmcgui.ListItem('JASON')
+    liz.setInfo(type="Video", infoLabels={"Title": 'JASON WAS HERE'})
+    liz.setPath(path)
+    # liz.setIconImage('DefaultVideoCover.png')
+    # liz.setArt('DefaultVideoCover.png')
+    # liz.setThumbnailImage('DefaultVideoCover.png')
+    # liz.setIconImage('DefaultVideoCover.png')
+    #liz.setProperty("fanart_image", 'DefaultVideoCover.png')
+    #liz.setProperty('ItemType', 'On Deck')
+    # False??? should maybe be set back to Fasle since not a folder
+    listitems.append((path, liz, True))
+    xbmcplugin.addDirectoryItems(plexbmc.main.PleXBMC.getHandle(), listitems)
+    xbmcplugin.endOfDirectory(handle=plexbmc.main.PleXBMC.getHandle())
+    print 'Finish jason_test'  # So this is where we really start the plugin.

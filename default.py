@@ -25,6 +25,11 @@
 '''
 import sys
 
+import os
+#import sys
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+
+from plexbmc.main import PleXBMC
 # from plexbmc import main
 # main.wake_on_lan()
 # main.nas_override()
@@ -35,7 +40,7 @@ import plexbmc
 from plexbmc import main
 #plexbmc.wake_on_lan()
 #plexbmc.nas_override()
-#main.PleXBMC()
+main.PleXBMC()
 #main.PleXBMC.reset()  # Dunno if we really need this since we gc the module anyway
 
 print 'plexbmc.__file__'

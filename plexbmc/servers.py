@@ -9,8 +9,9 @@ import xbmcgui  # pylint: disable=F0401
 import xbmcplugin  # pylint: disable=F0401
 
 import plexbmc
-from plexbmc import *
-#from plexbmc import servers
+#from . import gui
+import plexbmc.gui
+import plexbmc.main
 
 class PlexServers:
     '''
@@ -83,7 +84,7 @@ class PlexServers:
         das_servers = {}
         das_server_index = 0
 
-        g_discovery = plexbmc.SETTINGS.getSetting('discovery')
+        g_discovery = plexbmc.__settings__.getSetting('discovery')
 
         if g_discovery == "1":
             plexbmc.printDebug(
@@ -118,8 +119,8 @@ class PlexServers:
 
         # Set to Disabled
         else:
-            das_host = plexbmc.SETTINGS.getSetting('ipaddress')
-            das_port = plexbmc.SETTINGS.getSetting('port')
+            das_host = plexbmc.__settings__.getSetting('ipaddress')
+            das_port = plexbmc.__settings__.getSetting('port')
 
             if not das_host or das_host == "<none>":
                 das_host = None
@@ -137,7 +138,7 @@ class PlexServers:
                     das_servers[das_server_index] = local_server
                     das_server_index = das_server_index + 1
 
-        if plexbmc.SETTINGS.getSetting('myplex_user') != "":
+        if plexbmc.__settings__.getSetting('myplex_user') != "":
             plexbmc.printDebug("PleXBMC -> Adding myplex as a server location", False)
 
             myplex_cache_file = plexbmc.CACHEDATA + "myplex.server.cache"
@@ -155,19 +156,19 @@ class PlexServers:
                     das_server_index = das_server_index + 1
 
         # Remove Cloud Sync servers, since they cause problems
-        # for das_server_index,das_server in das_servers.items():
+        # for das_server_index,das_server in das_plexbmc.servers.items():
         # Cloud sync "servers" don't have a version key in the dictionary
         #     if 'version' not in das_server:
         #         del das_servers[das_server_index]
 
         plexbmc.printDebug("PleXBMC -> serverList is " + str(das_servers), False)
-        return plexbmc.Sections.deduplicate(das_servers)
+        return plexbmc.gui.Sections.deduplicate(das_servers)
 
     @staticmethod
     def getLocalServers(ip_address="localhost", port=32400):
         '''
         Connect to the defined local server (either direct or via bonjour discovery)
-        and get a list of all known servers.
+        and get a list of all known plexbmc.servers.
         @input: nothing
         @return: a list of servers (as Dict)
         '''
@@ -206,7 +207,7 @@ class PlexServers:
             urlPath = "/" + "/".join(url.split('/')[urlsplit:])
 
             authHeader = MyPlexServers.getAuthDetails(
-                {'token': plexbmc.PleXBMC.getToken()}, False)
+                {'token': plexbmc.main.PleXBMC.getToken()}, False)
 
             plexbmc.printDebug("url = " + url)
             plexbmc.printDebug("header = " + str(authHeader))
@@ -303,7 +304,7 @@ class PlexServers:
         servers = PlexServers.getMasterServer(True)
         plexbmc.printDebug(str(servers))
 
-        current_master = plexbmc.SETTINGS.getSetting('masterServer')
+        current_master = plexbmc.__settings__.getSetting('masterServer')
 
         displayList = []
         for address in servers:
@@ -318,14 +319,14 @@ class PlexServers:
             return False
 
         plexbmc.printDebug("Setting master server to: %s" % (servers[result]['name'],))
-        plexbmc.SETTINGS.setSetting('masterServer', servers[result]['name'])
+        plexbmc.__settings__.setSetting('masterServer', servers[result]['name'])
         return
 
     @staticmethod
     def getTranscodeSettings(override=False):
         plexbmc.printDebug("== ENTER: gettranscodesettings ==", False)
 
-        PlexServers.setTranscode(plexbmc.SETTINGS.getSetting('transcode'))
+        PlexServers.setTranscode(plexbmc.__settings__.getSetting('transcode'))
 
         if override is True:
             plexbmc.printDebug("Transcode override.  Will play media with addon transcoding settings")
@@ -337,13 +338,13 @@ class PlexServers:
             plexbmc.printDebug("We are set to Transcode, overriding stream selection")
             PlexServers.setTranscodeFormat("m3u8")
 
-            PlexServers.setQuality(str(int(plexbmc.SETTINGS.getSetting('quality')) + 3))
+            PlexServers.setQuality(str(int(plexbmc.__settings__.getSetting('quality')) + 3))
             plexbmc.printDebug("Transcode format is " + PlexServers.getTranscodeFormat())
             plexbmc.printDebug("Transcode quality is " + PlexServers.getQuality())
 
             baseCapability = "http-live-streaming,http-mp4-streaming,http-streaming-video,http-streaming-video-1080p,http-mp4-video,http-mp4-video-1080p;videoDecoders=h264{profile:high&resolution:1080&level:51};"
 
-            g_audioOutput = plexbmc.SETTINGS.getSetting("audiotype")
+            g_audioOutput = plexbmc.__settings__.getSetting("audiotype")
             if g_audioOutput == "0":
                 audio = "mp3,aac{bitrate:160000}"
             elif g_audioOutput == "1":
@@ -362,7 +363,7 @@ class PlexServers:
         plexbmc.printDebug("== ENTER: getmasterserver ==", False)
 
         possibleServers = []
-        current_master = plexbmc.SETTINGS.getSetting('masterServer')
+        current_master = plexbmc.__settings__.getSetting('masterServer')
         for serverData in PlexServers.discoverAll().values():
             plexbmc.printDebug(str(serverData))
             if serverData['master'] == 1:
@@ -397,7 +398,7 @@ class PlexServers:
     def transcode(id, url, identifier=None):
         plexbmc.printDebug("== ENTER: transcode ==", False)
 
-        server = plexbmc.Utility.getServerFromURL(url)
+        server = plexbmc.gui.Utility.getServerFromURL(url)
 
         # Check for myplex user, which we need to alter to a master server
         if 'plexapp.com' in url:
@@ -415,8 +416,8 @@ class PlexServers:
                               'httpCookie': "",
                               'userAgent': "",
                               'ratingKey': id,
-                              'subtitleSize': plexbmc.SETTINGS.getSetting('subSize').split('.')[0],
-                              'audioBoost': plexbmc.SETTINGS.getSetting('audioSize').split('.')[0],
+                              'subtitleSize': plexbmc.__settings__.getSetting('subSize').split('.')[0],
+                              'audioBoost': plexbmc.__settings__.getSetting('audioSize').split('.')[0],
                               'key': ""}
 
         if identifier:
@@ -469,7 +470,7 @@ class PlexServers:
         # Logic may appear backward, but this does allow for a failed start to be detected
         # First while loop waiting for start
 
-        if plexbmc.SETTINGS.getSetting('monitoroff') == "true":
+        if plexbmc.__settings__.getSetting('monitoroff') == "true":
             return
 
         count = 0
@@ -505,24 +506,24 @@ class PlexServers:
         else:
             override = False
 
-        servers.PlexServers.getTranscodeSettings(override)
-        server = plexbmc.Utility.getServerFromURL(vids)
+        plexbmc.servers.PlexServers.getTranscodeSettings(override)
+        server = plexbmc.gui.Utility.getServerFromURL(vids)
         id = vids.split('?')[0].split('&')[0].split('/')[-1]
 
-        tree = plexbmc.Utility.getXML(vids)
+        tree = plexbmc.gui.Utility.getXML(vids)
         if not tree:
             return
 
         if force:
             full_data = True
 
-        streams = plexbmc.Media.getAudioSubtitlesMedia(server, tree, full_data)
+        streams = plexbmc.gui.Media.getAudioSubtitlesMedia(server, tree, full_data)
 
         if force and streams['type'] == "music":
             vids.playPlaylist(server, streams)
             return
 
-        url = plexbmc.Media.selectMedia(streams, server)
+        url = plexbmc.gui.Media.selectMedia(streams, server)
 
         if url is None:
             return
@@ -536,12 +537,12 @@ class PlexServers:
             plexbmc.printDebug("We are playing a stream")
             if PlexServers.getTranscode() == "true":
                 plexbmc.printDebug("We will be transcoding the stream")
-                playurl = servers.PlexServers.transcode(
-                    id, url) + servers.MyPlexServers.getAuthDetails({'token': plexbmc.PleXBMC.getToken()})
+                playurl = plexbmc.servers.PlexServers.transcode(
+                    id, url) + plexbmc.servers.MyPlexServers.getAuthDetails({'token': plexbmc.main.PleXBMC.getToken()})
 
             else:
-                playurl = url + servers.MyPlexServers.getAuthDetails(
-                    {'token': plexbmc.PleXBMC.getToken()}, prefix="?")
+                playurl = url + plexbmc.servers.MyPlexServers.getAuthDetails(
+                    {'token': plexbmc.main.PleXBMC.getToken()}, prefix="?")
         else:
             playurl = url
 
@@ -595,7 +596,7 @@ class PlexServers:
             return
         else:
             # XXX: Unused variable 'start'
-            start = xbmcplugin.setResolvedUrl(plexbmc.PleXBMC.getHandle(), True, item)
+            start = xbmcplugin.setResolvedUrl(plexbmc.main.PleXBMC.getHandle(), True, item)
 
         # record the playing file and server in the home window
         # so that plexbmc helper can find out what is playing
@@ -614,7 +615,7 @@ class PlexServers:
                 time.sleep(2)
 
         if not (PlexServers.getTranscode() == "true"):
-            plexbmc.Commands.setAudioSubtitles(streams)
+            plexbmc.gui.Commands.setAudioSubtitles(streams)
 
         if streams['type'] == "video":
             vids.monitorPlayback(id, server)
@@ -625,7 +626,7 @@ class PlexServers:
     def monitorPlayback(id, server):
         plexbmc.printDebug("== ENTER: monitorPlayback ==", False)
 
-        if plexbmc.SETTINGS.getSetting('monitoroff') == "true":
+        if plexbmc.__settings__.getSetting('monitoroff') == "true":
             return
 
         if len(server.split(':')) == 1:
@@ -653,7 +654,7 @@ class PlexServers:
             elif progress < 95:
                 plexbmc.printDebug("Movies played time: %s secs of %s @ %s%%" %
                            (currentTime, totalTime, progress))
-                servers.PlexServers.getURL("http://" + server + "/:/progress?key=" + id +
+                plexbmc.servers.PlexServers.getURL("http://" + server + "/:/progress?key=" + id +
                                    "&identifier=com.plexapp.plugins.library&time=" + str(currentTime * 1000), suppress=True)
                 complete = 0
 
@@ -661,7 +662,7 @@ class PlexServers:
             else:
                 if complete == 0:
                     plexbmc.printDebug("Movie marked as watched. Over 95% complete")
-                    servers.PlexServers.getURL("http://" + server + "/:/scrobble?key=" +
+                    plexbmc.servers.PlexServers.getURL("http://" + server + "/:/scrobble?key=" +
                                        id + "&identifier=com.plexapp.plugins.library", suppress=True)
                     complete = 1
 
@@ -676,7 +677,7 @@ class PlexServers:
             stopURL = 'http://' + server + '/video/:/transcode/segmented/stop?session=' + PlexServers.getSessionID()
 
             # XXX:  Unused variable 'html'
-            html = servers.PlexServers.getURL(stopURL)
+            html = plexbmc.servers.PlexServers.getURL(stopURL)
 
         return
 
@@ -687,7 +688,7 @@ class MyPlexServers:
     def getServers():
         '''
         Connect to the myplex service and get a list of all known
-        servers.
+        plexbmc.servers.
         @input: nothing
         @return: a list of servers (as Dict)
         '''
@@ -830,11 +831,11 @@ class MyPlexServers:
         plexbmc.printDebug("== ENTER: getMyPlexToken ==", False)
 
         try:
-            user, token = (plexbmc.SETTINGS.getSetting('myplex_token')).split('|')
+            user, token = (plexbmc.__settings__.getSetting('myplex_token')).split('|')
         except:
             token = None
 
-        if (token is None) or (renew) or (user != plexbmc.SETTINGS.getSetting('myplex_user')):
+        if (token is None) or (renew) or (user != plexbmc.__settings__.getSetting('myplex_user')):
             token = MyPlexServers.getNewMyPlexToken()
 
         plexbmc.printDebug(
@@ -851,8 +852,8 @@ class MyPlexServers:
         plexbmc.printDebug("== ENTER: getNewMyPlexToken ==", False)
 
         plexbmc.printDebug("Getting New token")
-        myplex_username = plexbmc.SETTINGS.getSetting('myplex_user')
-        myplex_password = plexbmc.SETTINGS.getSetting('myplex_pass')
+        myplex_username = plexbmc.__settings__.getSetting('myplex_user')
+        myplex_password = plexbmc.__settings__.getSetting('myplex_pass')
 
         if (myplex_username or myplex_password) == "":
             plexbmc.printDebug("No myplex details in config..")
@@ -884,7 +885,7 @@ class MyPlexServers:
                 try:
                     token = plexbmc.etree.fromstring(link).findtext(
                         'authentication-token')
-                    plexbmc.SETTINGS.setSetting(
+                    plexbmc.__settings__.setSetting(
                         'myplex_token', myplex_username + "|" + token)
                 except:
                     plexbmc.printDebug(link)
