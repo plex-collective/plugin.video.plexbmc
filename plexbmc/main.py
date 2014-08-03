@@ -4,17 +4,18 @@ import xbmc  # pylint: disable=F0401
 import xbmcgui  # pylint: disable=F0401
 import xbmcplugin  # pylint: disable=F0401
 
-from plexbmc import DEBUG
+from plexbmc import DEBUG, printDebug
 import plexbmc.cache as cache
 import plexbmc
 import plexbmc.skins
+import plexbmc.skins_amber
 import plexbmc.gui
 import plexbmc.servers
 
 
 def getParams(paramlist):
-    plexbmc.printDebug("== ENTER: get_params ==", False)
-    plexbmc.printDebug("Parameter string/list: " + str(paramlist))
+    printDebug("== ENTER: get_params ==", False)
+    printDebug("Parameter string/list: " + str(paramlist))
 
     param = {}
     try:
@@ -44,7 +45,7 @@ def getParams(paramlist):
                             1] + "=" + splitparams[2]
             print "PleXBMC -> Detected parameters: " + str(param)
     except:
-        plexbmc.printDebug("Parameter parsing failed: " + str(paramlist))
+        printDebug("Parameter parsing failed: " + str(paramlist))
     return param
 
 
@@ -61,7 +62,7 @@ class PleXBMC(object):
         print "============================================================================================="
         print "============================================================================================="
         print "============================================================================================="
-        plexbmc.printDebug("PleXBMC -> Script argument is " + str(sys.argv), False)
+        printDebug("PleXBMC -> Script argument is " + str(sys.argv), False)
         print "PleXBMC -> Script argument is " + str(sys.argv)
 
         params = getParams(sys.argv)
@@ -97,31 +98,30 @@ class PleXBMC(object):
                 'append', '').isdigit() else int(params.get('append'))
 
             if 'sections' in content:
-                plexbmc.skins.Skin.amberskin(container_id)
-            # displaySections()
+                plexbmc.skins.Skin.popluateLibrarySections(container_id)
 
         # Populate Skin variables
-        # if str(sys.argv[1]) == "skin":
-        #    try:
-        #        type=sys.argv[2]
-        #    except:
-        #        type=None
-        #    skin(type=type)
+        elif str(sys.argv[1]) == "skin":
+            try:
+                skin_type = sys.argv[2]
+            except:
+                skin_type = None
+            plexbmc.skins.skin(skin_type = skin_type)
 
-        # elif str(sys.argv[1]) == "amberskin":
-        #    amberskin()
+        elif str(sys.argv[1]) == "amberskin":
+            plexbmc.skins_amber.amberskin()
 
         # Populate recently OR on deck shelf items
         if str(sys.argv[1]) == "shelf":
-            plexbmc.skins.Skin.shelf()
+            plexbmc.skins.shelf()
 
         # Populate both recently AND on deck shelf items
         elif str(sys.argv[1]) == "fullshelf":
-            plexbmc.skins.Skin.fullShelf()
+            plexbmc.skins_amber.fullShelf()
 
         # Populate channel recently viewed items
         elif str(sys.argv[1]) == "channelShelf":
-            plexbmc.skins.Skin.shelfChannel()
+            plexbmc.skins_amber.shelfChannel()
 
         # Send a library update to Plex
         elif sys.argv[1] == "update":
@@ -138,16 +138,16 @@ class PleXBMC(object):
             plexbmc.__settings__.openSettings()
             WINDOW = xbmcgui.getCurrentWindowId()
             if WINDOW == 10000:
-                plexbmc.printDebug(
+                printDebug(
                     "Currently in home - refreshing to allow new settings to be taken")
                 xbmc.executebuiltin("XBMC.ActivateWindow(Home)")
 
-        # nt currently used
+        # not currently used
         elif sys.argv[1] == "refreshplexbmc":
             server_list = plexbmc.servers.PlexServers.discoverAll()
-            plexbmc.skins.Skin.skin(server_list)
-            plexbmc.skins.Skin.shelf(server_list)
-            plexbmc.skins.Skin.shelfChannel(server_list)
+            plexbmc.skins.skin(server_list)
+            plexbmc.skins.shelf(server_list)
+            plexbmc.skins_amber.shelfChannel(server_list)
 
         # delete media from PMS
         elif sys.argv[1] == "delete":
