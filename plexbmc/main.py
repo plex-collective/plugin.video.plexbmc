@@ -4,15 +4,51 @@ import xbmc  # pylint: disable=F0401
 import xbmcgui  # pylint: disable=F0401
 import xbmcplugin  # pylint: disable=F0401
 
+from plexbmc import DEBUG
+import plexbmc.cache as cache
 import plexbmc
 import plexbmc.skins
 import plexbmc.gui
 import plexbmc.servers
 
 
+def getParams(paramlist):
+    plexbmc.printDebug("== ENTER: get_params ==", False)
+    plexbmc.printDebug("Parameter string/list: " + str(paramlist))
+
+    param = {}
+    try:
+        # Make sure parmlist is a list, not a string
+        paramlist = paramlist if isinstance(paramlist, list) else [paramlist]
+
+        for paramstring in paramlist:
+            if len(paramstring) >= 2:
+                params = paramstring
+
+                if params[0] == "?":
+                    cleanedparams = params[1:]
+                else:
+                    cleanedparams = params
+
+                if (params[len(params) - 1] == '/'):
+                    params = params[0:len(params) - 2]
+
+                pairsofparams = cleanedparams.split('&')
+                for i in range(len(pairsofparams)):
+                    splitparams = {}
+                    splitparams = pairsofparams[i].split('=')
+                    if (len(splitparams)) == 2:
+                        param[splitparams[0]] = splitparams[1]
+                    elif (len(splitparams)) == 3:
+                        param[splitparams[0]] = splitparams[
+                            1] + "=" + splitparams[2]
+            print "PleXBMC -> Detected parameters: " + str(param)
+    except:
+        plexbmc.printDebug("Parameter parsing failed: " + str(paramlist))
+    return param
+
+
 class PleXBMC(object):
-    '''
-    '''
     _plugin_handle = None
     _token = None
 
@@ -28,7 +64,7 @@ class PleXBMC(object):
         plexbmc.printDebug("PleXBMC -> Script argument is " + str(sys.argv), False)
         print "PleXBMC -> Script argument is " + str(sys.argv)
 
-        params = plexbmc.gui.Utility.get_params(sys.argv)
+        params = getParams(sys.argv)
 
         # Now try and assign some data to them
         param_url = params.get('url', None)
@@ -54,7 +90,7 @@ class PleXBMC(object):
         force = params.get('force', False)
         content = params.get('content', None)
 
-        print 'self.getHandle(cls): %s' % str(self.getHandle())
+        print 'self.getHandle(): %s' % str(self.getHandle())
         if content:
             # Don't overwrite contents, append it
             container_id = None if not params.get(
@@ -127,18 +163,18 @@ class PleXBMC(object):
             url = sys.argv[2]
             plexbmc.gui.Commands.alterSubs(url)
 
-        # Display audio streanm selection screen
+        # Display audio stream selection screen
         elif sys.argv[1] == "audio":
             url = sys.argv[2]
             plexbmc.gui.Commands.alterAudio(url)
 
-        # Allow a mastre server to be selected (for myplex queue)
+        # Allow a master server to be selected (for myplex queue)
         elif sys.argv[1] == "master":
             plexbmc.servers.PlexServers.setMasterServer()
 
         # Delete cache and refresh it
         elif str(sys.argv[1]) == "cacherefresh":
-            plexbmc.Cache.delete()
+            cache.delete()
             xbmc.executebuiltin("ReloadSkin()")
 
         # XXX  WE be sending non ints for some reason
@@ -147,13 +183,11 @@ class PleXBMC(object):
 
         # else move to the main code
         elif self.getHandle():
-           #pluginhandle = int(sys.argv[1])
-
             WINDOW = xbmcgui.Window(xbmcgui.getCurrentWindowId())
             WINDOW.clearProperty("heading")
             WINDOW.clearProperty("heading2")
 
-            if plexbmc.g_debug == "true":
+            if DEBUG:
                 print "PleXBMC -> Mode: " + str(mode)
                 print "PleXBMC -> URL: " + str(param_url)
                 print "PleXBMC -> Name: " + str(param_name)
@@ -164,99 +198,99 @@ class PleXBMC(object):
             if (mode is None) or (param_url is None) or (len(param_url) < 1):
                 plexbmc.gui.Sections.displaySections()
 
-            elif mode == plexbmc._MODE_GETCONTENT:
+            elif mode == plexbmc.MODE_GETCONTENT:
                 plexbmc.gui.Media.getContent(param_url)
 
-            elif mode == plexbmc._MODE_TVSHOWS:
+            elif mode == plexbmc.MODE_TVSHOWS:
                 plexbmc.gui.GUI.TVShows(param_url)
 
-            elif mode == plexbmc._MODE_MOVIES:
+            elif mode == plexbmc.MODE_MOVIES:
                 xbmcplugin.addSortMethod(
                     self.getHandle(), xbmcplugin.SORT_METHOD_VIDEO_SORT_TITLE_IGNORE_THE)
                 plexbmc.gui.GUI.Movies(param_url)
 
-            elif mode == plexbmc._MODE_ARTISTS:
+            elif mode == plexbmc.MODE_ARTISTS:
                 plexbmc.gui.GUI.artist(param_url)
 
-            elif mode == plexbmc._MODE_TVSEASONS:
+            elif mode == plexbmc.MODE_TVSEASONS:
                 plexbmc.gui.GUI.TVSeasons(param_url)
 
-            elif mode == plexbmc._MODE_PLAYLIBRARY:
+            elif mode == plexbmc.MODE_PLAYLIBRARY:
                 plexbmc.servers.Media.playLibraryMedia(
                     param_url, force=force, override=param_transcodeOverride)
 
-            elif mode == plexbmc._MODE_PLAYSHELF:
+            elif mode == plexbmc.MODE_PLAYSHELF:
                 plexbmc.servers.Media.playLibraryMedia(param_url, full_data=True, shelf=True)
 
-            elif mode == plexbmc._MODE_TVEPISODES:
+            elif mode == plexbmc.MODE_TVEPISODES:
                 plexbmc.gui.GUI.TVEpisodes(param_url)
 
-            elif mode == plexbmc._MODE_PLEXPLUGINS:
+            elif mode == plexbmc.MODE_PLEXPLUGINS:
                 plexbmc.gui.OtherModes.PlexPlugins(param_url)
 
-            elif mode == plexbmc._MODE_PROCESSXML:
+            elif mode == plexbmc.MODE_PROCESSXML:
                 plexbmc.gui.Utility.processXML(param_url)
 
-            elif mode == plexbmc._MODE_BASICPLAY:
+            elif mode == plexbmc.MODE_BASICPLAY:
                 plexbmc.gui.Commands.PLAY(param_url)
 
-            elif mode == plexbmc._MODE_ALBUMS:
+            elif mode == plexbmc.MODE_ALBUMS:
                 plexbmc.gui.GUI.albums(param_url)
 
-            elif mode == plexbmc._MODE_TRACKS:
+            elif mode == plexbmc.MODE_TRACKS:
                 plexbmc.gui.GUI.tracks(param_url)
 
-            elif mode == plexbmc._MODE_PHOTOS:
+            elif mode == plexbmc.MODE_PHOTOS:
                 plexbmc.gui.GUI.photo(param_url)
 
-            elif mode == plexbmc._MODE_MUSIC:
+            elif mode == plexbmc.MODE_MUSIC:
                 plexbmc.gui.GUI.music(param_url)
 
-            elif mode == plexbmc._MODE_VIDEOPLUGINPLAY:
+            elif mode == plexbmc.MODE_VIDEOPLUGINPLAY:
                 plexbmc.gui.Commands.videoPluginPlay(
                     param_url, param_identifier, param_indirect)
 
-            elif mode == plexbmc._MODE_PLEXONLINE:
+            elif mode == plexbmc.MODE_PLEXONLINE:
                 plexbmc.gui.OtherModes.plexOnline(param_url)
 
-            elif mode == plexbmc._MODE_CHANNELINSTALL:
+            elif mode == plexbmc.MODE_CHANNELINSTALL:
                 plexbmc.gui.OtherModes.install(param_url, param_name)
 
-            elif mode == plexbmc._MODE_CHANNELVIEW:
+            elif mode == plexbmc.MODE_CHANNELVIEW:
                 plexbmc.gui.OtherModes.channelView(param_url)
 
-            elif mode == plexbmc._MODE_DISPLAYSERVERS:
+            elif mode == plexbmc.MODE_DISPLAYSERVERS:
                 plexbmc.gui.OtherModes.displayServers(param_url)
 
-            elif mode == plexbmc._MODE_PLAYLIBRARY_TRANSCODE:
+            elif mode == plexbmc.MODE_PLAYLIBRARY_TRANSCODE:
                 plexbmc.servers.Media.playLibraryMedia(param_url, override=True)
 
-            elif mode == plexbmc._MODE_MYPLEXQUEUE:
+            elif mode == plexbmc.MODE_MYPLEXQUEUE:
                 plexbmc.gui.OtherModes.myPlexQueue()
 
-            elif mode == plexbmc._MODE_CHANNELSEARCH:
+            elif mode == plexbmc.MODE_CHANNELSEARCH:
                 plexbmc.gui.OtherModes.channelSearch(param_url, params.get('prompt'))
 
-            elif mode == plexbmc._MODE_CHANNELPREFS:
+            elif mode == plexbmc.MODE_CHANNELPREFS:
                 plexbmc.gui.OtherModes.channelSettings(param_url, params.get('id'))
 
-            elif mode == plexbmc._MODE_SHARED_MOVIES:
+            elif mode == plexbmc.MODE_SHARED_MOVIES:
                 plexbmc.gui.Sections.displaySections(filter="movies", shared=True)
 
-            elif mode == plexbmc._MODE_SHARED_SHOWS:
+            elif mode == plexbmc.MODE_SHARED_SHOWS:
                 plexbmc.gui.Sections.displaySections(filter="tvshows", shared=True)
 
-            elif mode == plexbmc._MODE_SHARED_PHOTOS:
+            elif mode == plexbmc.MODE_SHARED_PHOTOS:
                 plexbmc.gui.Sections.displaySections(filter="photos", shared=True)
 
-            elif mode == plexbmc._MODE_SHARED_MUSIC:
+            elif mode == plexbmc.MODE_SHARED_MUSIC:
                 plexbmc.gui.Sections.displaySections(filter="music", shared=True)
 
-            elif mode == plexbmc._MODE_SHARED_ALL:
+            elif mode == plexbmc.MODE_SHARED_ALL:
                 plexbmc.gui.Sections.displaySections(shared=True)
 
-            elif mode == plexbmc._MODE_DELETE_REFRESH:
-                plexbmc.Cache.delete()
+            elif mode == plexbmc.MODE_DELETE_REFRESH:
+                cache.delete()
                 xbmc.executebuiltin("Container.Refresh")
 
     @classmethod

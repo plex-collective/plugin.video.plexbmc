@@ -39,15 +39,30 @@
 import inspect
 import os
 import sys
-import time
 import xbmc  # pylint: disable=F0401
 import xbmcaddon  # pylint: disable=F0401
-import xbmcvfs  # pylint: disable=F0401
 
-try:
-    import cPickle as pickle
-except ImportError:
-    import pickle
+# If DEBUG/DEBUG_DEV == None, skin settings will be used.  Otherwise
+# override the skin settings by setting to True or False
+DEBUG = True
+DEBUG_DEV = True
+
+# Get the setting from the appropriate file.
+DEFAULT_PORT = "32400"
+MYPLEX_SERVER = "my.plexapp.com"
+
+# g_loc = PLUGINPATH   * Does not work right, why? *
+LOC = "special://home/addons/plugin.video.plexbmc"
+THUMB = "special://home/addons/plugin.video.plexbmc/resources/thumb.png"
+
+# Create the standard header structure and load with a User Agent to
+# ensure we get back a response.
+#
+# XXX: Unused variable 'TX_HEADERS' (was 'g_txheaders')
+TX_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US;rv:1.9.2.3) Gecko/20100401 Firefox/3.6.3 ( .NET CLR 3.5.30729)',
+}
+
 
 __addon__ = xbmcaddon.Addon()
 __plugin__ = __addon__.getAddonInfo('name')
@@ -59,68 +74,70 @@ __localize__ = __addon__.getLocalizedString
 __cwd__ = xbmc.translatePath(__addon__.getAddonInfo('path')).decode('utf-8')
 
 BASE_RESOURCE_PATH = xbmc.translatePath(os.path.join(__cwd__, 'resources', 'lib'))
-PLUGINPATH = xbmc.translatePath(os.path.join(__cwd__))
 sys.path.append(BASE_RESOURCE_PATH)
-CACHEDATA = __cachedir__
+
+PLUGINPATH = xbmc.translatePath(os.path.join(__cwd__))
+CACHE_DATA = __cachedir__
 PLEXBMC_VERSION = __version__
 
-print "===== PLEXBMC START ====="
-print "PleXBMC -> Running Python: " + str(sys.version_info)
-print "PleXBMC -> Running PleXBMC: " + str(PLEXBMC_VERSION)
-print "PleXBMC -> FullRes Thumbs are se to: " + __settings__.getSetting("fullres_thumbs")
-print "PleXBMC -> CWD is set to: " + __cwd__
+MODE_GETCONTENT = 0
+MODE_TVSHOWS = 1
+MODE_MOVIES = 2
+MODE_ARTISTS = 3
+MODE_TVSEASONS = 4
+MODE_PLAYLIBRARY = 5
+MODE_TVEPISODES = 6
+MODE_PLEXPLUGINS = 7
+MODE_PROCESSXML = 8
+MODE_CHANNELSEARCH = 9
+MODE_CHANNELPREFS = 10
+MODE_PLAYSHELF = 11
+MODE_BASICPLAY = 12
+MODE_SHARED_MOVIES = 13
+MODE_ALBUMS = 14
+MODE_TRACKS = 15
+MODE_PHOTOS = 16
+MODE_MUSIC = 17
+MODE_VIDEOPLUGINPLAY = 18
+MODE_PLEXONLINE = 19
+MODE_CHANNELINSTALL = 20
+MODE_CHANNELVIEW = 21
+MODE_DISPLAYSERVERS = 22
+MODE_PLAYLIBRARY_TRANSCODE = 23
+MODE_MYPLEXQUEUE = 24
+MODE_SHARED_SHOWS = 25
+MODE_SHARED_MUSIC = 26
+MODE_SHARED_PHOTOS = 27
+MODE_DELETE_REFRESH = 28
+MODE_SHARED_ALL = 29
 
-# Get the setting from the appropriate file.
-DEFAULT_PORT = "32400"
-MYPLEX_SERVER = "my.plexapp.com"
-_MODE_GETCONTENT = 0
-_MODE_TVSHOWS = 1
-_MODE_MOVIES = 2
-_MODE_ARTISTS = 3
-_MODE_TVSEASONS = 4
-_MODE_PLAYLIBRARY = 5
-_MODE_TVEPISODES = 6
-_MODE_PLEXPLUGINS = 7
-_MODE_PROCESSXML = 8
-_MODE_CHANNELSEARCH = 9
-_MODE_CHANNELPREFS = 10
-_MODE_PLAYSHELF = 11
-_MODE_BASICPLAY = 12
-_MODE_SHARED_MOVIES = 13
-_MODE_ALBUMS = 14
-_MODE_TRACKS = 15
-_MODE_PHOTOS = 16
-_MODE_MUSIC = 17
-_MODE_VIDEOPLUGINPLAY = 18
-_MODE_PLEXONLINE = 19
-_MODE_CHANNELINSTALL = 20
-_MODE_CHANNELVIEW = 21
-_MODE_DISPLAYSERVERS = 22
-_MODE_PLAYLIBRARY_TRANSCODE = 23
-_MODE_MYPLEXQUEUE = 24
-_MODE_SHARED_SHOWS = 25
-_MODE_SHARED_MUSIC = 26
-_MODE_SHARED_PHOTOS = 27
-_MODE_DELETE_REFRESH = 28
-_MODE_SHARED_ALL = 29
+SUB_AUDIO_XBMC_CONTROL = "0"
+SUB_AUDIO_PLEX_CONTROL = "1"
+SUB_AUDIO_NEVER_SHOW = "2"
 
-_SUB_AUDIO_XBMC_CONTROL = "0"
-_SUB_AUDIO_PLEX_CONTROL = "1"
-_SUB_AUDIO_NEVER_SHOW = "2"
+
+def settings(name):
+    '''
+    Normalize xbmcaddon.Addon settings lookup
+    '''
+    setting = __settings__.getSetting(name)
+
+    if setting.lower() == 'true':
+        return True
+    elif setting.lower() == 'false':
+        return False
+    else:
+        return setting
+
+DEBUG = settings('debug') if DEBUG is None else DEBUG
+DEBUG_DEV = settings('debug_dev') if DEBUG_DEV is None else DEBUG_DEV
 
 # Check debug first...
-#g_debug = __settings__.getSetting('debug')
-#g_debug_dev = __settings__.getSetting('debug_dev')
-# XXX;
-g_debug = 'true'
-g_debug_dev = 'true'
-
 # elementtree imports. If debugging on, use python elementtree, as c implementation
 # is horrible for debugging.
-
-if g_debug == "true":
-    print("PleXBMC -> Running with built-in ElemenTree (debug).")
+if DEBUG:
     import xml.etree.ElementTree as etree
+    print("PleXBMC -> Running with built-in ElemenTree (debug).")
 else:
     try:
         # Python 2.5
@@ -137,21 +154,20 @@ else:
                 import xml.etree.ElementTree as etree
                 print("PleXBMC -> Running with built-in ElementTree")
             except ImportError:
-                print(
-                    "PleXBMC -> Failed to import ElementTree from any known place")
+                print("PleXBMC -> Failed to import ElementTree from any known place")
 
 
-def printDebug(msg, functionname=True):
-    if g_debug == "true":
-        if functionname is False:
+def printDebug(msg, function_name=True):
+    if DEBUG:
+        if function_name is False:
             print str(msg)
         else:
             print "PleXBMC -> " + inspect.stack()[1][3] + ": " + str(msg)
 
 
-def printDev(msg, functionname=True):
-    if g_debug_dev == "true":
-        if functionname is False:
+def printDev(msg, function_name=True):
+    if DEBUG_DEV:
+        if function_name is False:
             print str(msg)
         else:
             print "PleXBMC -> " + inspect.stack()[1][3] + ": " + str(msg)
@@ -170,169 +186,33 @@ def getPlatform():
         return "Linux/RPi"
     elif xbmc.getCondVisibility('system.platform.android'):
         return "Linux/Android"
-
     return "Unknown"
 
-PLEXBMC_PLATFORM = getPlatform()
-print "PleXBMC -> Platform: " + str(PLEXBMC_PLATFORM)
 
-
-def wake_on_lan():
+def WakeOnLan():
     # Next Check the WOL status - lets give the servers as much time as
     # possible to come up
-    g_wolon = __settings__.getSetting('wolon')
-    if g_wolon == "true":
+    wolon = settings('wolon')
+    if wolon:
         from WOL import wake_on_lan
-        printDebug("PleXBMC -> Wake On LAN: " + g_wolon, False)
+        printDebug("PleXBMC -> Wake On LAN: %s" % wolon, False)
         for i in range(1, 12):
-            wakeserver = __settings__.getSetting('wol' + str(i))
-            if not wakeserver == "":
+            wakeserver = settings('wol' + str(i))
+            #if not wakeserver == "":
+            if wakeserver:
                 try:
-                    printDebug(
-                        "PleXBMC -> Waking server " + str(i) + " with MAC: " + wakeserver, False)
+                    printDebug("PleXBMC -> Waking server " + str(i) + " with MAC: " + wakeserver, False)
                     wake_on_lan(wakeserver)
                 except ValueError:
-                    printDebug(
-                        "PleXBMC -> Incorrect MAC address format for server " + str(i), False)
+                    printDebug("PleXBMC -> Incorrect MAC address format for server " + str(i), False)
                 except:
                     printDebug("PleXBMC -> Unknown wake on lan error", False)
 
-g_secondary = __settings__.getSetting('secondary')
-g_streamControl = __settings__.getSetting('streamControl')
-g_channelview = __settings__.getSetting('channelview')
-g_flatten = __settings__.getSetting('flatten')
-printDebug("PleXBMC -> Flatten is: " + g_flatten, False)
-g_forcedvd = __settings__.getSetting('forcedvd')
-
-'''
-if g_debug == "true":
-    print "PleXBMC -> Settings streaming: " + plexbmc.servers.PlexServers.getStreaming()
-    print "PleXBMC -> Setting filter menus: " + g_secondary
-    print "PleXBMC -> Setting debug to " + g_debug
-    if g_streamControl == _SUB_AUDIO_XBMC_CONTROL:
-        print "PleXBMC -> Setting stream Control to : XBMC CONTROL (%s)" % g_streamControl
-    elif g_streamControl == _SUB_AUDIO_PLEX_CONTROL:
-        print "PleXBMC -> Setting stream Control to : PLEX CONTROL (%s)" % g_streamControl
-    elif g_streamControl == _SUB_AUDIO_NEVER_SHOW:
-        print "PleXBMC -> Setting stream Control to : NEVER SHOW (%s)" % g_streamControl
-
-    print "PleXBMC -> Force DVD playback: " + g_forcedvd
-else:
-    print "PleXBMC -> Debug is turned off.  Running silent"
-'''
-
-
-    # Get look and feel
-if __settings__.getSetting("contextreplace") == "true":
-    g_contextReplace = True
-else:
-    g_contextReplace = False
-
-g_skipcontext = __settings__.getSetting("skipcontextmenus")
-g_skipmetadata = __settings__.getSetting("skipmetadata")
-g_skipmediaflags = __settings__.getSetting("skipflags")
-g_skipimages = __settings__.getSetting("skipimages")
-
-# g_loc = PLUGINPATH   * Does not work right, why? *
-g_loc = "special://home/addons/plugin.video.plexbmc"
-g_thumb = "special://home/addons/plugin.video.plexbmc/resources/thumb.png"
-
-
-# Create the standard header structure and load with a User Agent to
-# ensure we get back a response.
-g_txheaders = {
-    'User-Agent': 'Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US;rv:1.9.2.3) Gecko/20100401 Firefox/3.6.3 ( .NET CLR 3.5.30729)',
-}
-
-
-class Cache:
-    '''
-    '''
-    @staticmethod
-    def read(cachefile):
-        if __settings__.getSetting("cache") == "false":
-            return (False, None)
-
-        printDebug("CACHE [%s]: attempting to read" % cachefile)
-        cache = xbmcvfs.File(cachefile)
-        cachedata = cache.read()
-        cache.close()
-        if cachedata:
-            printDebug("CACHE [%s]: read: [%s]" % (cachefile, cachedata))
-            cacheobject = pickle.loads(cachedata)
-            return (True, cacheobject)
-
-        printDebug("CACHE [%s]: empty" % cachefile)
-        return (False, None)
-
-    @staticmethod
-    def write(cachefile, object):
-        if __settings__.getSetting("cache") == "false":
-            return True
-
-        printDebug("CACHE [%s]: Writing file" % cachefile)
-        cache = xbmcvfs.File(cachefile, 'w')
-        cache.write(pickle.dumps(object))
-        cache.close()
-        return True
-
-    @staticmethod
-    def check(cachefile, life=3600):
-        if __settings__.getSetting("cache") == "false":
-            return (False, None)
-
-        if xbmcvfs.exists(cachefile):
-            printDebug("CACHE [%s]: exists" % cachefile)
-            now = int(round(time.time(), 0))
-            created = int(xbmcvfs.Stat(cachefile).st_ctime())
-            modified = int(xbmcvfs.Stat(cachefile).st_mtime())
-            accessed = int(xbmcvfs.Stat(cachefile).st_atime())
-            printDebug("CACHE [%s]: mod[%s] now[%s] diff[%s]" % (cachefile, modified, now, now - modified))
-            printDebug("CACHE [%s]: ctd[%s] mod[%s] acc[%s]" % (cachefile, created, modified, accessed))
-
-            if (modified < 0) or (now - modified) > life:
-                printDebug("CACHE [%s]: too old, delete" % cachefile)
-                success = xbmcvfs.delete(cachefile)
-                if success:
-                    printDebug("CACHE [%s]: deleted" % cachefile)
-                else:
-                    printDebug("CACHE [%s]: not deleted" % cachefile)
-            else:
-                printDebug("CACHE [%s]: current" % cachefile)
-
-                return Cache.read(cachefile)
-        else:
-            printDebug("CACHE [%s]: does not exist" % cachefile)
-
-        return (False, None)
-
-    @staticmethod
-    def delete():
-        printDebug("== ENTER: deleteCache ==", False)
-        # cache_header=".cache.directory"
-        cache_suffix = "cache"
-        dirs, files = xbmcvfs.listdir(CACHEDATA)
-
-        printDebug("List of file: [%s]" % files)
-        printDebug("List of dirs: [%s]" % dirs)
-
-        for i in files:
-            if cache_suffix not in i:
-                continue
-
-            success = xbmcvfs.delete(CACHEDATA + i)
-            if success:
-                printDebug("SUCCESSFUL: removed %s" % i)
-            else:
-                printDebug("UNSUCESSFUL: did not remove %s" % i)
 
 class _Nas:
-    '''
-    '''
     override = 'false'
     override_ip = None
     root = None
-    test = 'default'
 
     def __init__(self):
         self.test = 'updated'
@@ -348,4 +228,6 @@ class _Nas:
 
             self.override_ip = __settings__.getSetting('nasroot')
 
+PLEXBMC_PLATFORM = getPlatform()
+etree = etree
 nas = _Nas()
