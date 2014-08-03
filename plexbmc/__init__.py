@@ -210,23 +210,23 @@ def WakeOnLan():
 
 
 class _Nas:
-    override = 'false'
+    override = False
     override_ip = None
     root = None
 
     def __init__(self):
         self.test = 'updated'
         # NAS Override
-        self.override = __settings__.getSetting('nasoverride')
-        printDebug("PleXBMC -> SMB IP Override: " + self.override, False)
-        if self.override == "true":
-            self.override_ip = __settings__.getSetting('nasoverrideip')
-            if self.override_ip == "":
-                printDebug("PleXBMC -> No NAS IP Specified.  Ignoring setting")
-            else:
+        self.override = settings('nasoverride')
+        printDebug("PleXBMC -> SMB IP Override: %s" % self.override, False)
+        if self.override:
+            self.override_ip = settings('nasoverrideip')
+            if self.override_ip:
                 printDebug("PleXBMC -> NAS IP: " + self.override_ip, False)
+            else:
+                printDebug("PleXBMC -> No NAS IP Specified.  Ignoring setting")
 
-            self.override_ip = __settings__.getSetting('nasroot')
+            self.root = settings('nasroot')
 
 PLEXBMC_PLATFORM = getPlatform()
 etree = etree

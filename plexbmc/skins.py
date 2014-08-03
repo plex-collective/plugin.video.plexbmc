@@ -742,7 +742,7 @@ class Skin:
         printDebug("PATH in use is: ActivateWindow("+window+",plugin://plugin.video.plexbmc/?url="+s_url+",return)")
         sectionCount += 1
 
-    if __settings__.getSetting('myplex_user') != '' and hide_shared == 'true' and sharedCount != 0:
+    if settings('myplex_user') != '' and hide_shared == 'true' and sharedCount != 0:
         WINDOW.setProperty("plexbmc.%d.title"    % (sectionCount) , "Shared Content")
         WINDOW.setProperty("plexbmc.%d.subtitle" % (sectionCount) , "Shared")
         WINDOW.setProperty("plexbmc.%d.path"     % (sectionCount) , "ActivateWindow(VideoLibrary,plugin://plugin.video.plexbmc/?url=/&mode="+str(MODE_SHARED_ALL)+",return)")
@@ -799,7 +799,7 @@ class Skin:
         aToken=getAuthDetails(server)
         #qToken=getAuthDetails(server, prefix='?')
 
-        if g_channelview == "true":
+        if settings('channelview'):
             WINDOW.setProperty("plexbmc.channel", "1")
             WINDOW.setProperty("plexbmc.%d.server.channel" % (serverCount) , "ActivateWindow(VideoLibrary,plugin://plugin.video.plexbmc/?url=http://"+server['server']+":"+server['port']+"/system/plugins/all&mode=21"+aToken+",return)")
         else:
@@ -848,12 +848,12 @@ class Skin:
     WINDOW.setProperty("plexbmc.sectionCount", str(sectionCount))
     WINDOW.setProperty("plexbmc.numServers", str(numOfServers))
 
-    if __settings__.getSetting('myplex_user') != '':
+    if settings('myplex_user') != '':
         WINDOW.setProperty("plexbmc.queue" , "ActivateWindow(VideoLibrary,plugin://plugin.video.plexbmc/?url=http://myplexqueue&mode=24,return)")
         WINDOW.setProperty("plexbmc.myplex",  "1" )
 
         #Now let's populate queue shelf items since we have MyPlex login
-        if __settings__.getSetting('homeshelf') != '3':
+        if settings('homeshelf') != '3':
             printDebug("== ENTER: Queue Shelf ==", False)
             aToken = getMyPlexToken()
             myplex_server = getMyPlexURL('/pms/playlists/queue/all')

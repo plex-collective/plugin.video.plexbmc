@@ -74,18 +74,17 @@ class PlexServers:
             local server - from IP configuration
             bonjour server - from a bonjour lookup
             myplex server - from myplex configuration
-        Alters the global g_serverDict value
         @input: None
-        @return: None
+        @return: deduplicate(das_servers)
         '''
         plexbmc.printDebug("== ENTER: discoverAllServers ==", False)
 
         das_servers = {}
         das_server_index = 0
 
-        g_discovery = plexbmc.__settings__.getSetting('discovery')
+        discovery = plexbmc.__settings__.getSetting('discovery')
 
-        if g_discovery == "1":
+        if discovery == "1":
             plexbmc.printDebug(
                 "PleXBMC -> local GDM discovery setting enabled.", False)
             try:
@@ -150,7 +149,6 @@ class PlexServers:
             if das_myplex:
                 plexbmc.printDebug("MyPlex discovery completed")
                 for device in das_myplex:
-
                     das_servers[das_server_index] = device
                     das_server_index = das_server_index + 1
 
@@ -343,12 +341,12 @@ class PlexServers:
 
             baseCapability = "http-live-streaming,http-mp4-streaming,http-streaming-video,http-streaming-video-1080p,http-mp4-video,http-mp4-video-1080p;videoDecoders=h264{profile:high&resolution:1080&level:51};"
 
-            g_audioOutput = plexbmc.__settings__.getSetting("audiotype")
-            if g_audioOutput == "0":
+            audio_output = plexbmc.__settings__.getSetting("audiotype")
+            if audio_output == "0":
                 audio = "mp3,aac{bitrate:160000}"
-            elif g_audioOutput == "1":
+            elif audio_output == "1":
                 audio = "ac3{channels:6}"
-            elif g_audioOutput == "2":
+            elif audio_output == "2":
                 audio = "dts{channels:6}"
 
             PlexServers.setCapability(

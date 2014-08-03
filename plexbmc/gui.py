@@ -88,7 +88,7 @@ class Sections:
         from server_list, get a list of all the available sections
         and deduplicate the sections list
         @input: None
-        @return: None (alters the global value g_sectionList)
+        @return: section_list
         '''
         plexbmc.printDebug("== ENTER: getAllSections ==", False)
 
@@ -130,8 +130,7 @@ class Sections:
                 if each_server['discovery'] == 'myplex':
                     plexbmc.printDebug("Skipping as a myplex server")
                     continue
-                myplex_section_list = [
-                    x for x in myplex_section_list if not x['uuid'] == each_server['uuid']]
+                myplex_section_list = [x for x in myplex_section_list if not x['uuid'] == each_server['uuid']]
 
         section_list += myplex_section_list
         '''
@@ -1297,17 +1296,15 @@ class Media:
                 server = server.split(':')[0]
                 loginstring = ""
 
-                if plexbmc.nas.override == "true":
-                    if not plexbmc.nas.override_ip == "":
+                if plexbmc.nas.override:
+                    if plexbmc.nas.override_ip:
                         server = plexbmc.nas.override_ip
                         plexbmc.printDebug("Overriding server with: " + server)
 
                     nasuser = plexbmc.__settings__.getSetting('nasuserid')
                     if not nasuser == "":
-                        loginstring = plexbmc.__settings__.getSetting(
-                            'nasuserid') + ":" + plexbmc.__settings__.getSetting('naspass') + "@"
-                        plexbmc.printDebug(
-                            "Adding AFP/SMB login info for user " + nasuser)
+                        loginstring = plexbmc.__settings__.getSetting('nasuserid') + ":" + plexbmc.__settings__.getSetting('naspass') + "@"
+                        plexbmc.printDebug("Adding AFP/SMB login info for user " + nasuser)
 
                 if file_.find('Volumes') > 0:
                     filelocation = protocol + ":/" + file_.replace("Volumes", loginstring + server)
@@ -1320,10 +1317,9 @@ class Media:
                         # to file path.
                         filelocation = protocol + "://" + loginstring + server + file_
 
-            if plexbmc.nas.override == "true" and plexbmc.nas.root != "":
+            if plexbmc.nas.override and plexbmc.nas.root:
                 # Re-root the file path
-                plexbmc.printDebug(
-                    "Altering path " + filelocation + " so root is: " + plexbmc.nas.root)
+                plexbmc.printDebug("Altering path " + filelocation + " so root is: " + plexbmc.nas.root)
                 if '/' + plexbmc.nas.root + '/' in filelocation:
                     components = filelocation.split('/')
                     index = components.index(plexbmc.nas.root)
