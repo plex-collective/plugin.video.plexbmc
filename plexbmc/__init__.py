@@ -36,30 +36,13 @@
 # E309 - Put a blank line between a class declaration and its first method declaration
 #######################################################################################
 
-import base64
-import datetime
-import httplib
 import inspect
 import os
-import random
-import re
-import socket
 import sys
 import time
-import urllib
 import xbmc  # pylint: disable=F0401
 import xbmcaddon  # pylint: disable=F0401
-import xbmcgui  # pylint: disable=F0401
-import xbmcplugin  # pylint: disable=F0401
 import xbmcvfs  # pylint: disable=F0401
-
-#from plexbmc import main
-#from plexbmc import skins
-#from plexbmc import servers
-##from . import gui
-#PleXBMC = plexbmc.main.PleXBMC
-
-#from . import servers
 
 try:
     import cPickle as pickle
@@ -73,11 +56,9 @@ __icon__ = __addon__.getAddonInfo('icon')
 __cachedir__ = __addon__.getAddonInfo('profile')
 __settings__ = xbmcaddon.Addon(id='plugin.video.plexbmc')
 __localize__ = __addon__.getLocalizedString
-#__cwd__ = __settings__.getAddonInfo('path')
 __cwd__ = xbmc.translatePath(__addon__.getAddonInfo('path')).decode('utf-8')
 
-BASE_RESOURCE_PATH = xbmc.translatePath(
-    os.path.join(__cwd__, 'resources', 'lib'))
+BASE_RESOURCE_PATH = xbmc.translatePath(os.path.join(__cwd__, 'resources', 'lib'))
 PLUGINPATH = xbmc.translatePath(os.path.join(__cwd__))
 sys.path.append(BASE_RESOURCE_PATH)
 CACHEDATA = __cachedir__
@@ -225,7 +206,7 @@ g_forcedvd = __settings__.getSetting('forcedvd')
 
 '''
 if g_debug == "true":
-    print "PleXBMC -> Settings streaming: " + plexbmc.servers.PlexServers.GetStreaming()
+    print "PleXBMC -> Settings streaming: " + plexbmc.servers.PlexServers.getStreaming()
     print "PleXBMC -> Setting filter menus: " + g_secondary
     print "PleXBMC -> Setting debug to " + g_debug
     if g_streamControl == _SUB_AUDIO_XBMC_CONTROL:
@@ -241,23 +222,7 @@ else:
 '''
 
 
-def nas_override():
-    # NAS Override
-    global g_nasoverride
-    global g_nasoverrideip
-    global g_nasroot
-    g_nasoverride = __settings__.getSetting('nasoverride')
-    printDebug("PleXBMC -> SMB IP Override: " + g_nasoverride, False)
-    if g_nasoverride == "true":
-        g_nasoverrideip = __settings__.getSetting('nasoverrideip')
-        if g_nasoverrideip == "":
-            printDebug("PleXBMC -> No NAS IP Specified.  Ignoring setting")
-        else:
-            printDebug("PleXBMC -> NAS IP: " + g_nasoverrideip, False)
-
-        g_nasroot = __settings__.getSetting('nasroot')
-
-# Get look and feel
+    # Get look and feel
 if __settings__.getSetting("contextreplace") == "true":
     g_contextReplace = True
 else:
@@ -361,6 +326,26 @@ class Cache:
             else:
                 printDebug("UNSUCESSFUL: did not remove %s" % i)
 
+class _Nas:
+    '''
+    '''
+    override = 'false'
+    override_ip = None
+    root = None
+    test = 'default'
 
+    def __init__(self):
+        self.test = 'updated'
+        # NAS Override
+        self.override = __settings__.getSetting('nasoverride')
+        printDebug("PleXBMC -> SMB IP Override: " + self.override, False)
+        if self.override == "true":
+            self.override_ip = __settings__.getSetting('nasoverrideip')
+            if self.override_ip == "":
+                printDebug("PleXBMC -> No NAS IP Specified.  Ignoring setting")
+            else:
+                printDebug("PleXBMC -> NAS IP: " + self.override_ip, False)
 
+            self.override_ip = __settings__.getSetting('nasroot')
 
+nas = _Nas()

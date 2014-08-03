@@ -1,74 +1,20 @@
-import base64
-import datetime
-import httplib
-import inspect
-import os
 import random
 import re
-import socket
 import sys
-import time
 import urllib
 import xbmc  # pylint: disable=F0401
-import xbmcaddon  # pylint: disable=F0401
 import xbmcgui  # pylint: disable=F0401
 import xbmcplugin  # pylint: disable=F0401
-import xbmcvfs  # pylint: disable=F0401
 
 import plexbmc
-#from . import skins
-#from . import servers
-
-#from plexbmc.skins import Skins
-#from plexbmc.servers import PlexServers, MyPlexServers
 import plexbmc.skins
 import plexbmc.servers
 import plexbmc.main
 
+
 class Sections:
     '''
     '''
-    @staticmethod
-    def deduplicate(server_list):
-        '''
-        Return list of all media sections configured
-        within PleXBMC
-        @input: None
-        @Return: unique list of media servers
-        '''
-        plexbmc.printDebug("== ENTER: deduplicateServers ==", False)
-
-        if len(server_list) <= 1:
-            return server_list
-
-        temp_list = server_list.values()
-        oneCount = 0
-        for onedevice in temp_list:
-            twoCount = 0
-            for twodevice in temp_list:
-                #printDebug("["+str(oneCount)+":"+str(twoCount)+"] Checking " + onedevice['uuid'] + " and " + twodevice['uuid'])
-                if oneCount == twoCount:
-                    # printDebug("skip")
-                    twoCount += 1
-                    continue
-                if onedevice['uuid'] == twodevice['uuid']:
-                    #printDebug ("match")
-                    if onedevice['discovery'] == "auto" or onedevice['discovery'] == "local":
-                        temp_list.pop(twoCount)
-                    else:
-                        temp_list.pop(oneCount)
-                # else:
-                #    printDebug("no match")
-                twoCount += 1
-            oneCount += 1
-        count = 0
-        unique_list = {}
-        for i in temp_list:
-            unique_list[count] = i
-            count = count + 1
-        plexbmc.printDebug("Unique server List: " + str(unique_list))
-        return unique_list
-
     @staticmethod
     def getServerSections(ip_address, port, name, uuid):
         plexbmc.printDebug("== ENTER: getServerSections ==", False)
@@ -280,7 +226,7 @@ class Sections:
             GUI.addGUIItem('http://myplexqueue', {'title': 'myplex Queue'}, {
                            'thumb': plexbmc.g_thumb, 'type': 'Video', 'mode': plexbmc._MODE_MYPLEXQUEUE})
 
-        for server in allplexbmc.servers.itervalues():
+        for server in allservers.itervalues():
 
             if server['class'] == "secondary":
                 continue
@@ -355,8 +301,7 @@ class OtherModes:
                 s_url = 'http://%s:%s/video' % (
                     mediaserver.get('server', ''), mediaserver.get('port'))
                 if number_of_servers == 1:
-                    url.PlexPlugins(
-                        s_url + plexbmc.servers.MyPlexServers.getAuthDetails(extraData, prefix="?"))
+                    OtherModes.PlexPlugins(s_url + plexbmc.servers.MyPlexServers.getAuthDetails(extraData, prefix="?"))
                     return
 
             elif type == "online":
@@ -364,8 +309,7 @@ class OtherModes:
                 s_url = 'http://%s:%s/system/plexonline' % (
                     mediaserver.get('server', ''), mediaserver.get('port'))
                 if number_of_servers == 1:
-                    url.plexOnline(
-                        s_url + plexbmc.servers.MyPlexServers.getAuthDetails(extraData, prefix="?"))
+                    OtherModes.plexOnline(s_url + plexbmc.servers.MyPlexServers.getAuthDetails(extraData, prefix="?"))
                     return
 
             elif type == "music":
@@ -914,7 +858,7 @@ class Utility:
         plexbmc.printDebug("== ENTER: processXML ==", False)
         xbmcplugin.setContent(plexbmc.main.PleXBMC.getHandle(), 'movies')
         server = Utility.getServerFromURL(url)
-        tree = url.getXML(url, tree)
+        tree = Utility.getXML(url, tree)
         if tree is None:
             return
         GUI.setWindowHeading(tree)
@@ -1326,104 +1270,6 @@ class Commands:
         item = xbmcgui.ListItem(path=playurl)
         return xbmcplugin.setResolvedUrl(plexbmc.main.PleXBMC.getHandle(), True, item)
 
-    @staticmethod
-    def setAudioSubtitles(stream):
-        '''
-        Take the collected audio/sub stream data and apply to the media
-        If we do not have any subs then we switch them off
-        '''
-        plexbmc.printDebug("== ENTER: setAudioSubtitles ==", False)
-
-        # If we have decided not to collect any sub data then do not set subs
-        if stream['contents'] == "type":
-            plexbmc.printDebug("No audio or subtitle streams to process.")
-
-            # If we have decided to force off all subs, then turn them off now
-            # and return
-            if plexbmc.g_streamControl == plexbmc._SUB_AUDIO_NEVER_SHOW:
-                xbmc.Player().showSubtitles(False)
-                plexbmc.printDebug("All subs disabled")
-
-            return True
-
-        # Set the AUDIO component
-        if plexbmc.g_streamControl == plexbmc._SUB_AUDIO_PLEX_CONTROL:
-            plexbmc.printDebug("Attempting to set Audio Stream")
-
-            audio = stream['audio']
-
-            if stream['audioCount'] == 1:
-                plexbmc.printDebug(
-                    "Only one audio stream present - will leave as default")
-
-            elif audio:
-                plexbmc.printDebug("Attempting to use selected language setting: %s" % audio.get(
-                    'language', audio.get('languageCode', 'Unknown')).encode('utf8'))
-                plexbmc.printDebug(
-                    "Found preferred language at index " + str(stream['audioOffset']))
-                try:
-                    xbmc.Player().setAudioStream(stream['audioOffset'])
-                    plexbmc.printDebug("Audio set")
-                except:
-                    plexbmc.printDebug(
-                        "Error setting audio, will use embedded default stream")
-
-        # Set the SUBTITLE component
-        if plexbmc.g_streamControl == plexbmc._SUB_AUDIO_PLEX_CONTROL:
-            plexbmc.printDebug("Attempting to set preferred subtitle Stream", True)
-            subtitle = stream['subtitle']
-            if subtitle:
-                plexbmc.printDebug("Found preferred subtitle stream")
-                try:
-                    xbmc.Player().showSubtitles(False)
-                    if subtitle.get('key'):
-                        xbmc.Player().setSubtitles(subtitle[
-                            'key'] + plexbmc.servers.MyPlexServers.getAuthDetails({'token': plexbmc.main.PleXBMC.getToken()}, prefix="?"))
-                    else:
-                        plexbmc.printDebug(
-                            "Enabling embedded subtitles at index %s" % stream['subOffset'])
-                        xbmc.Player().setSubtitleStream(
-                            int(stream['subOffset']))
-
-                    xbmc.Player().showSubtitles(True)
-                    return True
-                except:
-                    plexbmc.printDebug("Error setting subtitle")
-
-            else:
-                plexbmc.printDebug("No preferred subtitles to set")
-                xbmc.Player().showSubtitles(False)
-
-        return False
-
-    @staticmethod
-    def playPlaylist(server, data):
-        plexbmc.printDebug("== ENTER: playPlaylist ==", False)
-        plexbmc.printDebug("Creating new playlist")
-        playlist = xbmc.PlayList(xbmc.PLAYLIST_MUSIC)
-        playlist.clear()
-
-        tree = Utility.getXML(
-            server + data['extra'].get('album') + "/children")
-        if tree is None:
-            return
-
-        TrackTags = tree.findall('Track')
-        for track in TrackTags:
-            plexbmc.printDebug("Adding playlist item")
-            url, item = GUI.trackTag(server, tree, track, listing=False)
-            liz = xbmcgui.ListItem(item.get('title', 'Unknown'), iconImage=data['full_data'].get(
-                'thumbnailImage', ''), thumbnailImage=data['full_data'].get('thumbnailImage', ''))
-            liz.setInfo(type='music', infoLabels=item)
-            playlist.add(url, liz)
-
-        index = int(data['extra'].get('index', 0)) - 1
-        plexbmc.printDebug("Playlist complete.  Starting playback from track %s [playlist index %s] " % (
-            data['extra'].get('index', 0), index))
-        xbmc.Player().playselected(index)
-
-        return
-
 class Media:
     '''
     '''
@@ -1433,7 +1279,7 @@ class Media:
         stream = partData['key']
         file = partData['file']
 
-        if (file is None) or (plexbmc.servers.PlexServers.GetStreaming() == "1"):
+        if (file is None) or (plexbmc.servers.PlexServers.getStreaming() == "1"):
             plexbmc.printDebug("Selecting stream")
             return "http://" + server + stream
 
@@ -1455,7 +1301,7 @@ class Media:
 
         # 0 is auto select.  basically check for local file first, then stream
         # if not found
-        if plexbmc.servers.PlexServers.GetStreaming() == "0":
+        if plexbmc.servers.PlexServers.getStreaming() == "0":
             # check if the file can be found locally
             if type == "nixfile" or type == "winfile":
                 try:
@@ -1475,8 +1321,8 @@ class Media:
                 return "http://" + server + stream
 
         # 2 is use SMB
-        elif plexbmc.servers.PlexServers.GetStreaming() == "2" or plexbmc.servers.PlexServers.GetStreaming() == "3":
-            if plexbmc.servers.PlexServers.GetStreaming() == "2":
+        elif plexbmc.servers.PlexServers.getStreaming() == "2" or plexbmc.servers.PlexServers.getStreaming() == "3":
+            if plexbmc.servers.PlexServers.getStreaming() == "2":
                 protocol = "smb"
             else:
                 protocol = "afp"
@@ -1490,9 +1336,9 @@ class Media:
                 server = server.split(':')[0]
                 loginstring = ""
 
-                if g_nasoverride == "true":
-                    if not g_nasoverrideip == "":
-                        server = g_nasoverrideip
+                if plexbmc.nas.override == "true":
+                    if not plexbmc.nas.override_ip == "":
+                        server = plexbmc.nas.override_ip
                         plexbmc.printDebug("Overriding server with: " + server)
 
                     nasuser = plexbmc.__settings__.getSetting('nasuserid')
@@ -1513,13 +1359,13 @@ class Media:
                         # to file path.
                         filelocation = protocol + "://" + loginstring + server + file
 
-            if g_nasoverride == "true" and g_nasroot != "":
+            if plexbmc.nas.override == "true" and plexbmc.nas.root != "":
                 # Re-root the file path
                 plexbmc.printDebug(
-                    "Altering path " + filelocation + " so root is: " + g_nasroot)
-                if '/' + g_nasroot + '/' in filelocation:
+                    "Altering path " + filelocation + " so root is: " + plexbmc.nas.root)
+                if '/' + plexbmc.nas.root + '/' in filelocation:
                     components = filelocation.split('/')
-                    index = components.index(g_nasroot)
+                    index = components.index(plexbmc.nas.root)
 
                     # XXX: Unused variable 'i'
                     for i in range(3, index):
@@ -1531,268 +1377,6 @@ class Media:
 
         plexbmc.printDebug("Returning URL: " + filelocation)
         return filelocation
-
-    @staticmethod
-    def getAudioSubtitlesMedia(server, tree, full=False):
-        '''
-        Cycle through the Parts sections to find all "selected" audio and subtitle streams
-        If a stream is marked as selected=1 then we will record it in the dict
-        Any that are not, are ignored as we do not need to set them
-        We also record the media locations for playback decision later on
-        '''
-        plexbmc.printDebug("== ENTER: getAudioSubtitlesMedia ==", False)
-        plexbmc.printDebug("Gather media stream info")
-
-        parts = []
-        partsCount = 0
-        subtitle = {}
-        subCount = 0
-        audio = {}
-        audioCount = 0
-        media = {}
-        subOffset = -1
-        audioOffset = -1
-        selectedSubOffset = -1
-        selectedAudioOffset = -1
-        full_data = {}
-        contents = "type"
-        media_type = "unknown"
-        extra = {}
-
-        timings = tree.find('Video')
-        if timings is not None:
-            media_type = "video"
-        else:
-            timings = tree.find('Track')
-            if timings:
-                media_type = "music"
-            else:
-                timings = tree.find('Photo')
-                if timings:
-                    media_type = "picture"
-                else:
-                    plexbmc.printDebug("No Video data found")
-                    return {}
-
-        media['viewOffset'] = timings.get('viewOffset', 0)
-        media['duration'] = timings.get('duration', 12 * 60 * 60)
-
-        if full:
-            if media_type == "video":
-                full_data = {'plot': timings.get('summary', '').encode('utf-8'),
-                             'title': timings.get('title', 'Unknown').encode('utf-8'),
-                             'sorttitle': timings.get('titleSort', timings.get('title', 'Unknown')).encode('utf-8'),
-                             'rating': float(timings.get('rating', 0)),
-                             'studio': timings.get('studio', '').encode('utf-8'),
-                             'mpaa': timings.get('contentRating', '').encode('utf-8'),
-                             'year': int(timings.get('year', 0)),
-                             'tagline': timings.get('tagline', ''),
-                             'thumbnailImage': server.getThumb(timings, server)}
-
-                if timings.get('type') == "episode":
-                    full_data['episode'] = int(timings.get('index', 0))
-                    full_data['aired'] = timings.get(
-                        'originallyAvailableAt', '')
-                    full_data['tvshowtitle'] = timings.get(
-                        'grandparentTitle', tree.get('grandparentTitle', '')).encode('utf-8')
-                    full_data['season'] = int(
-                        timings.get('parentIndex', tree.get('parentIndex', 0)))
-
-            elif media_type == "music":
-
-                full_data = {
-                    'TrackNumber': int(
-                        timings.get(
-                            'index',
-                            0)),
-                    'title': str(
-                        timings.get(
-                            'index',
-                            0)).zfill(2) +
-                    ". " +
-                    timings.get(
-                        'title',
-                        'Unknown').encode('utf-8'),
-                    'rating': float(
-                            timings.get(
-                                'rating',
-                                0)),
-                    'album': timings.get(
-                        'parentTitle',
-                        tree.get(
-                            'parentTitle',
-                            '')).encode('utf-8'),
-                    'artist': timings.get(
-                        'grandparentTitle',
-                        tree.get(
-                            'grandparentTitle',
-                            '')).encode('utf-8'),
-                    'duration': int(
-                        timings.get(
-                            'duration',
-                            0)) /
-                    1000,
-                    'thumbnailImage': server.getThumb(
-                        timings,
-                        server)}
-
-                extra['album'] = timings.get('parentKey')
-                extra['index'] = timings.get('index')
-
-        details = timings.findall('Media')
-
-        media_details_list = []
-        for media_details in details:
-
-            resolution = ""
-            try:
-                if media_details.get('videoResolution') == "sd":
-                    resolution = "SD"
-                elif int(media_details.get('videoResolution', 0)) >= 1080:
-                    resolution = "HD 1080"
-                elif int(media_details.get('videoResolution', 0)) >= 720:
-                    resolution = "HD 720"
-                elif int(media_details.get('videoResolution', 0)) < 720:
-                    resolution = "SD"
-            except:
-                pass
-
-            media_details_temp = {'bitrate': round(float(media_details.get('bitrate', 0)) / 1000, 1),
-                                  'videoResolution': resolution,
-                                  'container': media_details.get('container', 'unknown')}
-
-            options = media_details.findall('Part')
-
-            # Get the media locations (file and web) for later on
-            for stuff in options:
-
-                try:
-                    bits = stuff.get('key'), stuff.get('file')
-                    parts.append(bits)
-                    media_details_list.append(media_details_temp)
-                    partsCount += 1
-                except:
-                    pass
-
-        # if we are deciding internally or forcing an external subs file, then
-        # collect the data
-        if media_type == "video" and plexbmc.g_streamControl == plexbmc._SUB_AUDIO_PLEX_CONTROL:
-
-            contents = "all"
-            tags = tree.getiterator('Stream')
-
-            for bits in tags:
-                stream = dict(bits.items())
-
-                # Audio Streams
-                if stream['streamType'] == '2':
-                    audioCount += 1
-                    audioOffset += 1
-                    if stream.get('selected') == "1":
-                        plexbmc.printDebug(
-                            "Found preferred audio id: " + str(stream['id']))
-                        audio = stream
-                        selectedAudioOffset = audioOffset
-
-                # Subtitle Streams
-                elif stream['streamType'] == '3':
-
-                    if subOffset == -1:
-                        subOffset = int(stream.get('index', -1))
-                    elif stream.get('index', -1) > 0 and stream.get('index', -1) < subOffset:
-                        subOffset = int(stream.get('index', -1))
-
-                    if stream.get('selected') == "1":
-                        plexbmc.printDebug(
-                            "Found preferred subtitles id : " + str(stream['id']))
-                        subCount += 1
-                        subtitle = stream
-                        if stream.get('key'):
-                            subtitle['key'] = 'http://' + server + stream['key']
-                        else:
-                            selectedSubOffset = int(
-                                stream.get('index')) - subOffset
-
-        else:
-            plexbmc.printDebug("Stream selection is set OFF")
-
-        streamData = {'contents': contents,  # What type of data we are holding
-                      'audio': audio,  # Audio data held in a dict
-                      'audioCount': audioCount,  # Number of audio streams
-                      # Subtitle data (embedded) held as a dict
-                      'subtitle': subtitle,
-                      'subCount': subCount,  # Number of subtitle streams
-                      'parts': parts,  # The differet media locations
-                      'partsCount': partsCount,  # Number of media locations
-                      'media': media,  # Resume/duration data for media
-                      # Bitrate, resolution and container for each part
-                      'details': media_details_list,
-                      # Stream index for selected subs
-                      'subOffset': selectedSubOffset,
-                      # STream index for select audio
-                      'audioOffset': selectedAudioOffset,
-                      # Full metadata extract if requested
-                      'full_data': full_data,
-                      'type': media_type,  # Type of metadata
-                      'extra': extra}  # Extra data
-
-        plexbmc.printDebug(str(streamData))
-        return streamData
-
-    @staticmethod
-    def selectMedia(data, server):
-        plexbmc.printDebug("== ENTER: selectMedia ==", False)
-        # if we have two or more files for the same movie, then present a
-        # screen
-        result = 0
-        dvdplayback = False
-
-        count = data['partsCount']
-        options = data['parts']
-        details = data['details']
-
-        if count > 1:
-            dialogOptions = []
-            dvdIndex = []
-            indexCount = 0
-            for items in options:
-
-                if items[1]:
-                    name = items[1].split('/')[-1]
-                    #name="%s %s %sMbps" % (items[1].split('/')[-1], details[indexCount]['videoResolution'], details[indexCount]['bitrate'])
-                else:
-                    name = "%s %s %sMbps" % (items[0].split(
-                        '.')[-1], details[indexCount]['videoResolution'], details[indexCount]['bitrate'])
-
-                if plexbmc.g_forcedvd == "true":
-                    if '.ifo' in name.lower():
-                        plexbmc.printDebug("Found IFO DVD file in " + name)
-                        name = "DVD Image"
-                        dvdIndex.append(indexCount)
-
-                dialogOptions.append(name)
-                indexCount += 1
-
-            plexbmc.printDebug(
-                "Create selection dialog box - we have a decision to make!")
-            startTime = xbmcgui.Dialog()
-            result = startTime.select('Select media to play', dialogOptions)
-            if result == -1:
-                return None
-
-            if result in dvdIndex:
-                plexbmc.printDebug("DVD Media selected")
-                dvdplayback = True
-        else:
-            if plexbmc.g_forcedvd == "true":
-                if '.ifo' in options[result]:
-                    dvdplayback = True
-
-        newurl = Media.mediaType(
-            {'key': options[result][0], 'file': options[result][1]}, server, dvdplayback)
-
-        plexbmc.printDebug("We have selected media at " + newurl)
-        return newurl
 
     @staticmethod
     def getMediaData(tag_dict):
@@ -2330,7 +1914,7 @@ class GUI:
         for season in SeasonTags:
             if willFlatten:
                 url = 'http://' + server + season.get('key')
-                url.TVEpisodes(url)
+                GUI.TVEpisodes(url)
                 return
             watched = int(season.get('viewedLeafCount', 0))
 
@@ -2635,7 +2219,7 @@ class GUI:
         TrackTags = tree.findall('Track')
         for track in TrackTags:
 
-            url.trackTag(server, tree, track)
+            GUI.trackTag(server, tree, track)
 
         plexbmc.printDebug("Skin override is: %s" %
                    plexbmc.__settings__.getSetting('skinoverride'))

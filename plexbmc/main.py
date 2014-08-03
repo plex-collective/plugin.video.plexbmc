@@ -4,16 +4,11 @@ import xbmc  # pylint: disable=F0401
 import xbmcgui  # pylint: disable=F0401
 import xbmcplugin  # pylint: disable=F0401
 
-#import plexbmc
-#from . import skins
-#from . import servers
-#from . import gui
-
-#from plexbmc.skins import Skins
+import plexbmc
 import plexbmc.skins
 import plexbmc.gui
 import plexbmc.servers
-#Skins = plexbmc.plexbmc.skins.Skins
+
 
 class PleXBMC(object):
     '''
@@ -187,11 +182,11 @@ class PleXBMC(object):
                 plexbmc.gui.GUI.TVSeasons(param_url)
 
             elif mode == plexbmc._MODE_PLAYLIBRARY:
-                plexbmc.servers.PlexServers.playLibraryMedia(
+                plexbmc.servers.Media.playLibraryMedia(
                     param_url, force=force, override=param_transcodeOverride)
 
             elif mode == plexbmc._MODE_PLAYSHELF:
-                plexbmc.servers.PlexServers.playLibraryMedia(param_url, full_data=True, shelf=True)
+                plexbmc.servers.Media.playLibraryMedia(param_url, full_data=True, shelf=True)
 
             elif mode == plexbmc._MODE_TVEPISODES:
                 plexbmc.gui.GUI.TVEpisodes(param_url)
@@ -234,7 +229,7 @@ class PleXBMC(object):
                 plexbmc.gui.OtherModes.displayServers(param_url)
 
             elif mode == plexbmc._MODE_PLAYLIBRARY_TRANSCODE:
-                plexbmc.servers.PlexServers.playLibraryMedia(param_url, override=True)
+                plexbmc.servers.Media.playLibraryMedia(param_url, override=True)
 
             elif mode == plexbmc._MODE_MYPLEXQUEUE:
                 plexbmc.gui.OtherModes.myPlexQueue()

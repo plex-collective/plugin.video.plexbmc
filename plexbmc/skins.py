@@ -4,14 +4,10 @@ import xbmcgui  # pylint: disable=F0401
 import xbmcplugin  # pylint: disable=F0401
 
 import plexbmc
-#from . import gui
-#from . import servers
-
 import plexbmc.gui
 import plexbmc.servers
 import plexbmc.main
-#Skins = plexbmc.skins.Skins
-#Skins = plexbmc.skins.Skins
+
 
 class Skin:
     '''
@@ -971,11 +967,10 @@ class Skin:
         # Gather some data and set the window properties
         plexbmc.printDebug("== ENTER: fullShelf ==", False)
 
-        if plexbmc.__settings__.getSetting('homeshelf') == '3' or ((plexbmc.__settings__.getSetting(
-                'movieShelf') == "false" and plexbmc.__settings__.getSetting('tvShelf') == "false" and plexbmc.__settings__.getSetting('musicShelf') == "false")):
+        if plexbmc.__settings__.getSetting('homeshelf') == '3' or ((plexbmc.__settings__.getSetting('movieShelf') == "false" and plexbmc.__settings__.getSetting('tvShelf') == "false" and plexbmc.__settings__.getSetting('musicShelf') == "false")):
             plexbmc.printDebug("Disabling all shelf items")
-            server_list.clearShelf()
-            server_list.clearOnDeckShelf()
+            Skin.clearShelf()
+            Skin.clearOnDeckShelf()
             return
 
         # Get the global host variable set in settings
@@ -996,7 +991,7 @@ class Skin:
 
         if server_list == {}:
             xbmc.executebuiltin("XBMC.Notification(Unable to see any media servers,)")
-            server_list.clearShelf(0, 0, 0, 0)
+            Skin.clearShelf(0, 0, 0, 0)
             return
 
         randomNumber = str(random.randint(1000000000, 9999999999))
@@ -1091,7 +1086,7 @@ class Skin:
                         ondeck_url = section.get('address') + section.get("path") + "/onDeck"
                         #token = section.get('token', '')
                         tree = plexbmc.servers.PlexServers.getURL(ondeck_url)
-                        tree = plexbmc.plexbmc.etree.fromstring(tree)
+                        tree = plexbmc.etree.fromstring(tree)
                         token = server_details.get('token', '')
                         '''
                         eetee = plexbmc.etree.ElementTree()
@@ -1328,8 +1323,7 @@ class Skin:
                 plexbmc.printDebug("Building RecentEpisode window thumb: %s" % s_thumb)
 
                 recentSeasonCount += 1
-        server_list.clearShelf(
-            recentMovieCount, recentSeasonCount, recentMusicCount, recentPhotoCount)
+        Skin.clearShelf(recentMovieCount, recentSeasonCount, recentMusicCount, recentPhotoCount)
 
         # For each of the servers we have identified
         for index in sorted(ondeck_list):
@@ -1471,13 +1465,13 @@ class Skin:
                 plexbmc.printDebug("Building OnDeck window url: %s" % s_url)
                 plexbmc.printDebug("Building OnDeck window thumb: %s" % s_thumb)
 
-        server_list.clearOnDeckShelf(ondeckMovieCount, ondeckSeasonCount)
+        Skin.clearOnDeckShelf(ondeckMovieCount, ondeckSeasonCount)
 
         if plexbmc.__settings__.getSetting('channelShelf') == "true" or plexbmc.__settings__.getSetting('homeshelf') != '3':
-            server_list.shelfChannel(server_list)
+            Skin.shelfChannel(server_list)
         else:
             plexbmc.printDebug("Disabling channel shelf items")
-            server_list.clearChannelShelf()
+            Skin.clearChannelShelf()
 
     @staticmethod
     def shelf(server_list=None):
@@ -1490,7 +1484,7 @@ class Skin:
         if (plexbmc.__settings__.getSetting('movieShelf') == "false" and plexbmc.__settings__.getSetting('tvShelf') ==
                 "false" and plexbmc.__settings__.getSetting('musicShelf') == "false") or plexbmc.__settings__.getSetting('homeshelf') == '3':
             plexbmc.printDebug("Disabling all shelf items")
-            server_list.clearShelf()
+            Skin.clearShelf()
             return
 
         # Get the global host variable set in settings
@@ -1508,7 +1502,7 @@ class Skin:
 
         if server_list == {}:
             xbmc.executebuiltin("XBMC.Notification(Unable to see any media servers,)")
-            server_list.clearShelf(0, 0, 0)
+            Skin.clearShelf(0, 0, 0)
             return
 
         if plexbmc.__settings__.getSetting('homeshelf') == '0' or plexbmc.__settings__.getSetting('homeshelf') == '2':
@@ -1533,7 +1527,7 @@ class Skin:
             tree = plexbmc.gui.Utility.getXML('http://' + server_details['server'] + ":" + server_details['port'] + endpoint)
             if tree is None:
                 xbmc.executebuiltin("XBMC.Notification(Unable to contact server: " + server_details['serverName'] + ",)")
-                server_list.clearShelf()
+                Skin.clearShelf()
                 return
 
             for eachitem in tree:
@@ -1679,7 +1673,7 @@ class Skin:
                 plexbmc.printDebug("Building Recent window url: %s" % s_url)
                 plexbmc.printDebug("Building Recent window thumb: %s" % s_thumb)
 
-        server_list.clearShelf(movieCount, seasonCount, musicCount)
+        Skin.clearShelf(movieCount, seasonCount, musicCount)
 
     @staticmethod
     def clearShelf(movieCount=0, seasonCount=0, musicCount=0, photoCount=0):
@@ -1776,7 +1770,7 @@ class Skin:
 
         if plexbmc.__settings__.getSetting('channelShelf') == "false" or plexbmc.__settings__.getSetting('homeshelf') == '3':
             plexbmc.printDebug("Disabling channel shelf")
-            server_list.clearChannelShelf()
+            Skin.clearChannelShelf()
             return
 
         # Get the global host variable set in settings
@@ -1789,7 +1783,7 @@ class Skin:
 
         if server_list == {}:
             xbmc.executebuiltin("XBMC.Notification(Unable to see any media servers,)")
-            server_list.clearChannelShelf()
+            Skin.clearChannelShelf()
             return
 
         for server_details in server_list.values():
@@ -1818,7 +1812,7 @@ class Skin:
                 '/channels/recentlyViewed')
             if tree is None:
                 xbmc.executebuiltin("XBMC.Notification(Unable to contact server: " + server_details['serverName'] + ",)")
-                server_list.clearChannelShelf(0)
+                Skin.clearChannelShelf(0)
                 return
 
             # For each of the servers we have identified
@@ -1863,7 +1857,7 @@ class Skin:
                 plexbmc.printDebug("Building Recent window url: %s" % c_url)
                 plexbmc.printDebug("Building Recent window thumb: %s" % c_thumb)
 
-        server_list.clearChannelShelf(channelCount)
+        Skin.clearChannelShelf(channelCount)
         return
 
     @staticmethod
@@ -1923,6 +1917,7 @@ class Skin:
 
         else:
             return plexbmc.g_thumb
+
 
 def jason_test():
     listitems = list()

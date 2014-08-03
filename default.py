@@ -32,14 +32,12 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from plexbmc.main import PleXBMC
 # from plexbmc import main
 # main.wake_on_lan()
-# main.nas_override()
 # main.main()
 
 # Run
 import plexbmc
 from plexbmc import main
 #plexbmc.wake_on_lan()
-#plexbmc.nas_override()
 main.PleXBMC()
 #main.PleXBMC.reset()  # Dunno if we really need this since we gc the module anyway
 
