@@ -518,9 +518,9 @@ def fullShelf(server_list={}):
                     '''
                 for section in sections:
                     recent_url = section.get('address') + section.get("path") + "/recentlyAdded"
-                    #token = section.get('token', '')
-                    tree = plexbmc.servers.PlexServers.getURL(recent_url)
-                    tree = plexbmc.etree.fromstring(tree)
+                    recent_url = plexbmc.servers.PlexServers.normalizeURL(recent_url, server_list, section)
+                    content = plexbmc.servers.PlexServers.getURL(recent_url)
+                    tree = plexbmc.etree.fromstring(content)
                     token = server_details.get('token', '')
                     '''
                         eetee = plexbmc.etree.ElementTree()
@@ -571,9 +571,9 @@ def fullShelf(server_list={}):
             if plexbmc.settings('homeshelf') == '1' or plexbmc.settings('homeshelf') == '2':
                 for section in sections:
                     ondeck_url = section.get('address') + section.get("path") + "/onDeck"
-                    #token = section.get('token', '')
-                    tree = plexbmc.servers.PlexServers.getURL(ondeck_url)
-                    tree = plexbmc.etree.fromstring(tree)
+                    ondeck_url = plexbmc.servers.PlexServers.normalizeURL(ondeck_url, server_list, section)
+                    content = plexbmc.servers.PlexServers.getURL(ondeck_url)
+                    tree = plexbmc.etree.fromstring(content)
                     token = server_details.get('token', '')
                     '''
                         eetee = plexbmc.etree.ElementTree()
@@ -1018,6 +1018,10 @@ def shelfChannel(server_list=None):
         return
 
     for server_details in server_list.values():
+        # Myplex servers do not serve channels
+        if server_details['server'] == plexbmc.MYPLEX_SERVER:
+            continue
+
         if server_details['class'] == "secondary":
             continue
 

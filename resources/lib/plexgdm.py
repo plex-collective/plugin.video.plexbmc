@@ -35,12 +35,12 @@ import urllib2
 class plexgdm:
 
     def __init__(self, debug=0):
-        
+
         self.discover_message = 'M-SEARCH * HTTP/1.0'
         self.client_header = '* HTTP/1.0'
         self.client_data = None
         self.client_id = None
-        
+
         self._multicast_address = '239.0.0.250'
         self.discover_group = (self._multicast_address, 32414)
         self.client_register_group = (self._multicast_address, 32413)
@@ -48,7 +48,7 @@ class plexgdm:
 
         self.server_list = []
         self.discovery_interval = 120
-        
+
         self._discovery_is_running = False
         self._registration_is_running = False
 
@@ -63,7 +63,7 @@ class plexgdm:
     def clientDetails(self, c_id, c_name, c_post, c_product, c_version):
         self.client_data = "Content-Type: plex/media-player\nResource-Identifier: %s\nName: %s\nPort: %s\nProduct: %s\nVersion: %s" % ( c_id, c_name, c_post, c_product, c_version )
         self.client_id = c_id
-        
+
     def getClientDetails(self):
         if not self.client_data:
             self.__printDebug("Client data has not been initialised.  Please use PlexGDM.clientDetails()")
@@ -72,31 +72,31 @@ class plexgdm:
 
     def client_update (self):
         update_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-        
+
         #Set socket reuse, may not work on all OSs.
         try:
             update_sock.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
         except:
             pass
-        
+
         #Attempt to bind to the socket to recieve and send data.  If we can;t do this, then we cannot send registration
         try:
             update_sock.bind(('0.0.0.0',self.client_update_port))
         except:
             self.__printDebug( "Error: Unable to bind to port [%s] - client will not be registered" % self.client_update_port, 0)
-            return    
-        
+            return
+
         update_sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 255)
         status = update_sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, socket.inet_aton(self._multicast_address) + socket.inet_aton('0.0.0.0'))
         update_sock.setblocking(0)
         self.__printDebug("Sending registration data: HELLO %s\n%s" % (self.client_header, self.client_data), 3)
-        
+
         #Send initial client registration
         try:
             update_sock.sendto("HELLO %s\n%s" % (self.client_header, self.client_data), self.client_register_group)
         except:
             self.__printDebug( "Error: Unable to send registeration message" , 0)
-        
+
         #Now, listen for client discovery reguests and respond.
         while self._registration_is_running:
             try:
@@ -111,26 +111,26 @@ class plexgdm:
                         update_sock.sendto("HTTP/1.0 200 OK\n%s" % self.client_data, addr)
                     except:
                         self.__printDebug( "Error: Unable to send client update message",0)
-                    
+
                     self.__printDebug("Sending registration data: HTTP/1.0 200 OK\n%s" % (self.client_data), 3)
                     self.client_registered = True
-            time.sleep(0.5)        
+            time.sleep(0.5)
 
         self.__printDebug("Client Update loop stopped",1)
-        
+
         #When we are finished, then send a final goodbye message to deregister cleanly.
         self.__printDebug("Sending registration data: BYE %s\n%s" % (self.client_header, self.client_data), 3)
         try:
             update_sock.sendto("BYE %s\n%s" % (self.client_header, self.client_data), self.client_register_group)
         except:
             self.__printDebug( "Error: Unable to send client update message" ,0)
-                       
+
         self.client_registered = False
-                           
+
     def check_client_registration(self):
-        
+
         if self.client_registered and self.discovery_complete:
-        
+
             if not self.server_list:
                 self.__printDebug("Server list is empty. Unable to check",2)
                 return False
@@ -139,7 +139,7 @@ class plexgdm:
                 media_server=self.server_list[0]['server']
                 media_port=self.server_list[0]['port']
 
-                self.__printDebug("Checking server [%s] on port [%s]" % (media_server, media_port) ,2)                    
+                self.__printDebug("Checking server [%s] on port [%s]" % (media_server, media_port) ,2)
                 f = urllib2.urlopen('http://%s:%s/clients' % (media_server, media_port))
                 client_result = f.read()
                 if self.client_id in client_result:
@@ -149,16 +149,16 @@ class plexgdm:
                 else:
                     self.__printDebug("Client registration not found",1)
                     self.__printDebug("Client data is: %s" % client_result, 3)
-                   
+
             except:
                 self.__printDebug("Unable to check status")
                 pass
-        
+
         return False
-            
+
     def getServerList (self):
         return self.server_list
-        
+
     def discover(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
@@ -197,7 +197,7 @@ class plexgdm:
             for response in returnData:
                 update = { 'server' : response.get('from')[0] }
 
-                #Check if we had a positive HTTP response                        
+                #Check if we had a positive HTTP response
                 if "200 OK" in response.get('data'):
 
                     update['discovery'] = "auto"
@@ -205,7 +205,7 @@ class plexgdm:
                     update['master']= 1
                     update['role']='master'
                     update['class']=None
-            
+
                     for each in response.get('data').split('\n'):
 
                         if "Content-Type:" in each:
@@ -223,17 +223,17 @@ class plexgdm:
                         elif "Server-Class:" in each:
                             update['class'] = each.split(':')[1].strip()
 
-                discovered_servers.append(update)                    
+                discovered_servers.append(update)
 
         self.server_list = discovered_servers
-        
+
         if not self.server_list:
             self.__printDebug("No servers have been discovered",1)
         else:
             self.__printDebug("Number of servers Discovered: %s" % len(self.server_list),1)
             for items in self.server_list:
                 self.__printDebug("Server Discovered: %s" % items['serverName'] ,2)
-                
+
 
     def setInterval(self, interval):
         self.discovery_interval = interval
@@ -281,7 +281,7 @@ class plexgdm:
             self.discover_t.start()
         else:
             self.__printDebug("Discovery already running", 1)
-        
+
     def start_registration(self, daemon = False):
         if not self._registration_is_running:
             self.__printDebug("Registration starting up", 1)
@@ -291,11 +291,11 @@ class plexgdm:
             self.register_t.start()
         else:
             self.__printDebug("Registration already running", 1)
-             
+
     def start_all(self, daemon = False):
         self.start_discovery(daemon)
         self.start_registration(daemon)
-  
+
 
 #Example usage
 if __name__ == '__main__':

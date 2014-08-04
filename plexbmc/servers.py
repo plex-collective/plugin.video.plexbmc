@@ -1,12 +1,13 @@
 import base64
 import datetime
+import requests
 import httplib
 import socket
 import time
 import urllib
-import xbmc  # pylint: disable=F0401
-import xbmcgui  # pylint: disable=F0401
-import xbmcplugin  # pylint: disable=F0401
+import xbmc
+import xbmcgui
+import xbmcplugin
 
 from plexbmc import settings, DEBUG, PLEXBMC_VERSION, PLEXBMC_PLATFORM, CACHE_DATA, printDebug
 import plexbmc.cache as cache
@@ -180,6 +181,7 @@ class PlexServers:
         server = plexbmc.etree.fromstring(html)
 
         return {'serverName': server.attrib['friendlyName'].encode('utf-8'),
+                'scheme': server.attrib['scheme'],
                 'server': ip_address,
                 'port': port,
                 'discovery': 'local',
@@ -189,110 +191,120 @@ class PlexServers:
                 'master': 1,
                 'class': ''}
 
+                #'updated': '1407084668',
+                #'uuid': '34e28b63eb6ba30864e99f279458dff0201a4c62',
+                #'serverName': 'Haswell',
+                #'owned': '1',
+                #'server': '10.0.0.10',
+                #'port': '32400',
+                #'version': '0.9.9.13.525-197d5ed',
+                #'role': 'master',
+                #'master': 1,
+                #'content-type': 'plex/media-server',
+                #'class': None,
+                #'discovery': 'auto'}
+
+
+    @staticmethod
+    def normalizeURL(url, servers, section):
+        '''
+        Adds scheme and token if needed to url
+        '''
+        scheme = servers.get(section['uuid'], {}).get('scheme', 'http')
+        scheme = scheme + '://'
+        token = section.get('token', '')
+        token = '' if not token else '?X-Plex-Token=' + token
+        return scheme + url + token
+
+
     @staticmethod
     def getURL(url, suppress=True, url_type="GET", popup=0):
         printDebug("== ENTER: getURL ==", False)
+
+        url = url if "://" in url else "http://" + url
+        headers = MyPlexServers.getAuthDetails({'token': plexbmc.main.PleXBMC.getToken()}, False)
+
+        printDebug("url = " + url)
+        printDebug("headers = " + str(headers))
+
         try:
-            if url[0:4] == "http":
-                serversplit = 2
-                urlsplit = 3
+            if url_type == 'GET':
+                response = requests.get(url, headers=headers)
             else:
-                serversplit = 0
-                urlsplit = 1
+                response = requests.post(url, headers=headers)
 
-            server = url.split('/')[serversplit]
-            urlPath = "/" + "/".join(url.split('/')[urlsplit:])
-
-            authHeader = MyPlexServers.getAuthDetails(
-                {'token': plexbmc.main.PleXBMC.getToken()}, False)
-
-            printDebug("url = " + url)
-            printDebug("header = " + str(authHeader))
-            conn = httplib.HTTPConnection(server, timeout=8)
-            conn.request(url_type, urlPath, headers=authHeader)
-            data = conn.getresponse()
-
-            if int(data.status) == 200:
-                link = data.read()
+            if response.status_code == requests.codes.ok:
+                content = response.content
                 printDebug("====== XML returned =======")
-                printDebug(link, False)
+                printDebug(content, False)
                 printDebug("====== XML finished ======")
-                try:
-                    conn.close()
-                except:
-                    pass
-                return link
+                return content
 
-            elif (int(data.status) == 301) or (int(data.status) == 302):
-                try:
-                    conn.close()
-                except:
-                    pass
-                return data.getheader('Location')
+            elif response.status_code in [301, 302]:
+                return response.headers.get('Location', '')
 
-            elif int(data.status) == 401:
-                error = "Authentication error on server [%s].  Check user/password." % server
+            elif response.status_code == 401:
+                error = "Authentication error.  Check user/password."
                 print "PleXBMC -> %s" % error
-                if suppress is False:
-                    if popup == 0:
-                        xbmc.executebuiltin("XBMC.Notification(Server authentication error,)")
+                if not suppress:
+                    if not popup:
+                        xbmc.executebuiltin("XBMC.Notification(Server Authentication Error,)")
                     else:
-                        xbmcgui.Dialog().ok("PleXBMC", "Authentication require or incorrect")
+                        xbmcgui.Dialog().ok("PleXBMC", "Authentication Required or Incorrect")
 
-            elif int(data.status) == 404:
-                error = "Server [%s] XML/web page does not exist." % server
+            elif response.status_code == 401:
+                error = "XML/web page does not exist."
                 print "PleXBMC -> %s" % error
-                if suppress is False:
-                    if popup == 0:
-                        xbmc.executebuiltin("XBMC.Notification(Server web/XML page error,)")
+                if not suppress:
+                    if not popup:
+                        xbmc.executebuiltin("XBMC.Notification(Web/XML Page Does Not Exist,)")
                     else:
-                        xbmcgui.Dialog().ok("PleXBMC", "Server error, data does not exist")
+                        xbmcgui.Dialog().ok("PleXBMC", "Web/XML Page Does Not Exist")
 
-            elif int(data.status) >= 400:
-                error = "HTTP response error: " + str(data.status) + " " + str(data.reason)
+            elif response.status_code >= 402:
+                error = "HTTP response error: " + str(response.status_code) + " " + str(response.reason)
                 print error
-                if suppress is False:
-                    if popup == 0:
-                        xbmc.executebuiltin("XBMC.Notification(URL error: " + str(data.reason) + ",)")
+                if not suppress:
+                    if not popup:
+                        xbmc.executebuiltin("XBMC.Notification(URL error: " + str(response.reason) + ",)")
                     else:
-                        xbmcgui.Dialog().ok("Error", server)
+                        xbmcgui.Dialog().ok("Error", error)
 
-            else:
-                link = data.read()
-                printDebug("====== XML returned =======")
-                printDebug(link, False)
-                printDebug("====== XML finished ======")
-                try:
-                    conn.close()
-                except:
-                    pass
-                return link
-
-        except socket.gaierror:
-            error = "Unable to locate host [%s]\nCheck host name is correct" % server
+        except requests.ConnectionError as msg:
+            error = "Connection Error.  A network problem has occured (DNS failure, refused connection, etc)\nError: %s" % msg
             print "PleXBMC %s" % error
-            if suppress is False:
-                if popup == 0:
-                    xbmc.executebuiltin("XBMC.Notification(\"PleXBMC\": Server name incorrect,)")
+            if not suppress:
+                if not popup:
+                    xbmc.executebuiltin("XBMC.Notification(\"PleXBMC\": Connection Error,)")
                 else:
-                    xbmcgui.Dialog().ok("PleXBMC", "Server [%s] not found" % server)
-
-        except socket.error as msg:
-            error = "Server[%s] is offline, or not responding\nReason: %s" % (
-                server, str(msg))
-            print "PleXBMC -> %s" % error
-            if suppress is False:
-                if popup == 0:
-                    xbmc.executebuiltin("XBMC.Notification(\"PleXBMC\": Server offline or not responding,)")
+                    xbmcgui.Dialog().ok("PleXBMC", "Connecton Error")
+        except requests.Timeout as msg:
+            error = "Connection Timeout.\nError: %s" % msg
+            print "PleXBMC %s" % error
+            if not suppress:
+                if not popup:
+                    xbmc.executebuiltin("XBMC.Notification(\"PleXBMC\": Connection Timeout,)")
                 else:
-                    xbmcgui.Dialog().ok("PleXBMC", "Server is offline or not responding")
+                    xbmcgui.Dialog().ok("PleXBMC", "Connecton Timeout")
+        except requests.TooManyRedirects as msg:
+            error = "Too Many Redirects\nError: %s" % msg
+            print "PleXBMC %s" % error
+            if not suppress:
+                if not popup:
+                    xbmc.executebuiltin("XBMC.Notification(\"PleXBMC\": Too Many Redirects,)")
+                else:
+                    xbmcgui.Dialog().ok("PleXBMC", "Too Many Redirects")
+        except requests.HTTPError as msg:
+            error = "Invalid HTTP response\nError: %s" % msg
+            print "PleXBMC %s" % error
+            if not suppress:
+                if not popup:
+                    xbmc.executebuiltin("XBMC.Notification(\"PleXBMC\": Invalid HTTP Response,)")
+                else:
+                    xbmcgui.Dialog().ok("PleXBMC", "Invalid HTTP Response")
 
-        try:
-            conn.close()
-        except:
-            pass
+        return ''
 
-        return False
 
     @staticmethod
     def setMasterServer():
@@ -579,36 +591,20 @@ class PlexServers:
         '''
         printDebug("== ENTER: deduplicateServers ==", False)
 
-        if len(server_list) <= 1:
-            return server_list
-
-        temp_list = server_list.values()
-        oneCount = 0
-        for onedevice in temp_list:
-            twoCount = 0
-            for twodevice in temp_list:
-                #printDebug("["+str(oneCount)+":"+str(twoCount)+"] Checking " + onedevice['uuid'] + " and " + twodevice['uuid'])
-                if oneCount == twoCount:
-                    # printDebug("skip")
-                    twoCount += 1
-                    continue
-                if onedevice['uuid'] == twodevice['uuid']:
-                    #printDebug ("match")
-                    if onedevice['discovery'] == "auto" or onedevice['discovery'] == "local":
-                        temp_list.pop(twoCount)
-                    else:
-                        temp_list.pop(oneCount)
-                # else:
-                #    printDebug("no match")
-                twoCount += 1
-            oneCount += 1
-        count = 0
-        unique_list = {}
-        for i in temp_list:
-            unique_list[count] = i
-            count = count + 1
-        printDebug("Unique server List: " + str(unique_list))
-        return unique_list
+        # Merge the servers so we get access to scheme, etc
+        servers = {}
+        for server in server_list.values():
+            print server
+            if not server['uuid'] in servers.keys():
+                servers.setdefault(server['uuid'], {})
+                servers[server['uuid']].update(server)
+                servers[server['uuid']]['merged'] = False
+            else:
+                if server['discovery'] in ["auto", "local"]:
+                    servers[server['uuid']].update(server)
+                servers[server['uuid']]['merged'] = True
+        printDebug("Unique server List: " + str(servers))
+        return servers
 
 
 class MyPlexServers:
@@ -647,6 +643,7 @@ class MyPlexServers:
                 accessToken = server.get('accessToken')
 
             tempServers.append({'serverName': server.get('name').encode('utf-8'),
+                                'scheme': server.get('scheme'),
                                 'server': server.get('address'),
                                 'port': server.get('port'),
                                 'discovery': 'myplex',
@@ -689,7 +686,8 @@ class MyPlexServers:
         @return: an xml page as string or false
         '''
         printDebug("== ENTER: getMyPlexURL ==", False)
-        printDebug("url = " + plexbmc.MYPLEX_SERVER + url_path)
+        #printDebug("url = " + plexbmc.MYPLEX_SERVER + url_path)
+        printDebug("url = " + plexbmc.MYPLEX_SERVER + url_path + "?X-Plex-Token=" + MyPlexServers.getMyPlexToken(renew))
 
         try:
             conn = httplib.HTTPSConnection(plexbmc.MYPLEX_SERVER, timeout=5)
@@ -785,7 +783,7 @@ class MyPlexServers:
         myplex_username = plexbmc.__settings__.getSetting('myplex_user')
         myplex_password = plexbmc.__settings__.getSetting('myplex_pass')
 
-        if (myplex_username or myplex_password) == "":
+        if not myplex_username or not myplex_password:
             printDebug("No myplex details in config..")
             return ""
 
@@ -975,7 +973,7 @@ class Media:
                              'mpaa': timings.get('contentRating', '').encode('utf-8'),
                              'year': int(timings.get('year', 0)),
                              'tagline': timings.get('tagline', ''),
-                             'thumbnailImage': server.getThumb(timings, server)}
+                             'thumbnailImage': plexbmc.gui.Media.getThumb(timings, server)}
 
                 if timings.get('type') == "episode":
                     full_data['episode'] = int(timings.get('index', 0))
@@ -1020,9 +1018,7 @@ class Media:
                             'duration',
                             0)) /
                     1000,
-                    'thumbnailImage': server.getThumb(
-                        timings,
-                        server)}
+                    'thumbnailImage': plexbmc.gui.Media.getThumb(timings, server)}
 
                 extra['album'] = timings.get('parentKey')
                 extra['index'] = timings.get('index')

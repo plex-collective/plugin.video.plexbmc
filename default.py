@@ -24,12 +24,15 @@
     along with PleXBMC Plugin.  If not, see <http://www.gnu.org/licenses/>.
 '''
 import sys
-#import os
-# sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-
 from plexbmc import settings, printDebug, DEBUG, PLEXBMC_PLATFORM, PLEXBMC_VERSION
 import plexbmc
 import plexbmc.main
+
+# Allow interactive python debugging
+WING = False
+if WING:
+    try: import wingdbstub
+    except: pass
 
 print "===== PLEXBMC START ====="
 print "PleXBMC -> Running Python: " + str(sys.version_info)
