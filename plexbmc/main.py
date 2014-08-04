@@ -196,7 +196,7 @@ class PleXBMC(object):
 
             # Run a function based on the mode variable that was passed in the URL
             if (mode is None) or (param_url is None) or (len(param_url) < 1):
-                plexbmc.gui.Sections.displaySections()
+                plexbmc.gui.displaySections()
 
             elif mode == plexbmc.MODE_GETCONTENT:
                 plexbmc.gui.Media.getContent(param_url)
@@ -275,19 +275,19 @@ class PleXBMC(object):
                 plexbmc.gui.OtherModes.channelSettings(param_url, params.get('id'))
 
             elif mode == plexbmc.MODE_SHARED_MOVIES:
-                plexbmc.gui.Sections.displaySections(filter="movies", shared=True)
+                plexbmc.gui.displaySections(filter="movies", shared=True)
 
             elif mode == plexbmc.MODE_SHARED_SHOWS:
-                plexbmc.gui.Sections.displaySections(filter="tvshows", shared=True)
+                plexbmc.gui.displaySections(filter="tvshows", shared=True)
 
             elif mode == plexbmc.MODE_SHARED_PHOTOS:
-                plexbmc.gui.Sections.displaySections(filter="photos", shared=True)
+                plexbmc.gui.displaySections(filter="photos", shared=True)
 
             elif mode == plexbmc.MODE_SHARED_MUSIC:
-                plexbmc.gui.Sections.displaySections(filter="music", shared=True)
+                plexbmc.gui.displaySections(filter="music", shared=True)
 
             elif mode == plexbmc.MODE_SHARED_ALL:
-                plexbmc.gui.Sections.displaySections(shared=True)
+                plexbmc.gui.displaySections(shared=True)
 
             elif mode == plexbmc.MODE_DELETE_REFRESH:
                 cache.delete()

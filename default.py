@@ -29,7 +29,7 @@ import plexbmc
 import plexbmc.main
 
 # Allow interactive python debugging
-WING = False
+WING = True
 if WING:
     try: import wingdbstub
     except: pass

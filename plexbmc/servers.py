@@ -1328,3 +1328,129 @@ class Media:
 
         printDebug("We have selected media at " + newurl)
         return newurl
+
+class Sections:
+    @staticmethod
+    def getServerSections(ip_address, port, name, uuid):
+        printDebug("== ENTER: getServerSections ==", False)
+
+        cache_file = "%s%s.sections.cache" % (CACHE_DATA, uuid)
+        success, temp_list = cache.check(cache_file)
+
+        if not success:
+            html = plexbmc.servers.PlexServers.getURL(
+                'http://%s:%s/library/sections' % (ip_address, port))
+
+            if html is False:
+                return {}
+
+            sections = plexbmc.etree.fromstring(html)
+            temp_list = []
+            for section in sections:
+                path = section.get('key')
+                if not path[0] == "/":
+                    path = '/library/sections/%s' % path
+
+                temp_list.append({'title': section.get('title', 'Unknown').encode('utf-8'),
+                                  'address': ip_address + ":" + port,
+                                  'serverName': name,
+                                  'uuid': uuid,
+                                  'sectionuuid': section.get('uuid', ''),
+                                  'path': path,
+                                  'token': section.get('accessToken', None),
+                                  'location': "local",
+                                  'art': section.get('art', None),
+                                  'local': '1',
+                                  'type': section.get('type', ''),
+                                  'owned': '1'})
+            cache.write(cache_file, temp_list)
+        return temp_list
+
+    @staticmethod
+    def getMyplexSections():
+        printDebug("== ENTER: getMyplexSections ==", False)
+
+        cache_file = "%smyplex.sections.cache" % (CACHE_DATA)
+        success, temp_list = cache.check(cache_file)
+
+        if not success:
+            html = plexbmc.servers.MyPlexServers.getMyPlexURL('/pms/system/library/sections')
+
+            if html is False:
+                return {}
+
+            tree = plexbmc.etree.fromstring(html).getiterator("Directory")
+            temp_list = []
+            for sections in tree:
+                temp_list.append({'title': sections.get('title', 'Unknown').encode('utf-8'),
+                                  'address': sections.get('host', 'Unknown') + ":" + sections.get('port'),
+                                  'serverName': sections.get('serverName', 'Unknown').encode('utf-8'),
+                                  'uuid': sections.get('machineIdentifier', 'Unknown'),
+                                  'sectionuuid': sections.get('uuid', '').encode('utf-8'),
+                                  'path': sections.get('path'),
+                                  'token': sections.get('accessToken', None),
+                                  'location': "myplex",
+                                  'art': sections.get('art'),
+                                  'local': sections.get('local'),
+                                  'type': sections.get('type', 'Unknown'),
+                                  'owned': sections.get('owned', '0')})
+            cache.write(cache_file, temp_list)
+        return temp_list
+
+    @staticmethod
+    def getAllSections(server_list=None):
+        '''
+        from server_list, get a list of all the available sections
+        and deduplicate the sections list
+        @input: None
+        @return: section_list
+        '''
+        printDebug("== ENTER: getAllSections ==", False)
+
+        if server_list is None:
+            server_list = plexbmc.servers.PlexServers.discoverAll()
+        printDebug("Using servers list: " + str(server_list))
+
+        section_list = []
+        myplex_section_list = []
+        myplex_complete = False
+        local_complete = False
+
+        for server in server_list.itervalues():
+            if server['discovery'] == "local" or server['discovery'] == "auto":
+                section_details = Sections.getServerSections(server['server'], server['port'], server['serverName'], server['uuid'])
+                section_list += section_details
+                local_complete = True
+
+            elif server['discovery'] == "myplex":
+                if not myplex_complete:
+                    section_details = Sections.getMyplexSections()
+                    myplex_section_list += section_details
+                    myplex_complete = True
+        '''
+        logfile = PLUGINPATH + "/_section_list.txt"
+        with open(logfile, 'wb') as f:
+            f.write(str(section_list))
+
+        logfile = PLUGINPATH + "/_myplex_section_list.txt"
+        with open(logfile, 'wb') as f:
+            f.write(str(myplex_section_list))
+        '''
+        # Remove any myplex sections that are locally available
+        if myplex_complete and local_complete:
+            printDebug("Deduplicating myplex sections list")
+            for each_server in server_list.values():
+                printDebug("Checking server [%s]" % each_server)
+                if each_server['discovery'] == 'myplex':
+                    printDebug("Skipping as a myplex server")
+                    continue
+                myplex_section_list = [x for x in myplex_section_list if not x['uuid'] == each_server['uuid']]
+
+        section_list += myplex_section_list
+        '''
+        logfile = PLUGINPATH + "/_final_section_list.txt"
+        with open(logfile, 'wb') as f:
+            f.write(str(section_list))
+        '''
+        return section_list
+

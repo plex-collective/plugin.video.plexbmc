@@ -14,263 +14,135 @@ import plexbmc.servers
 import plexbmc.main
 
 
-class Sections:
-    @staticmethod
-    def getServerSections(ip_address, port, name, uuid):
-        printDebug("== ENTER: getServerSections ==", False)
+def displaySections(filter=None, shared=False):
+    printDebug("== ENTER: displaySections() ==", False)
+    xbmcplugin.setContent(plexbmc.main.PleXBMC.getHandle(), 'files')
 
-        cache_file = "%s%s.sections.cache" % (CACHE_DATA, uuid)
-        success, temp_list = cache.check(cache_file)
+    ds_servers = plexbmc.servers.PlexServers.discoverAll()
+    numOfServers = len(ds_servers)
+    printDebug(
+        "Using list of " + str(numOfServers) + " servers: " + str(ds_servers))
 
-        if not success:
-            html = plexbmc.servers.PlexServers.getURL(
-                'http://%s:%s/library/sections' % (ip_address, port))
+    for section in plexbmc.servers.Sections.getAllSections(ds_servers):
+        if shared and section.get('owned') == '1':
+            continue
 
-            if html is False:
-                return {}
+        details = {'title': section.get('title', 'Unknown')}
 
-            sections = plexbmc.etree.fromstring(html)
-            temp_list = []
-            for section in sections:
-                path = section.get('key')
-                if not path[0] == "/":
-                    path = '/library/sections/%s' % path
+        if len(ds_servers) > 1:
+            details['title'] = section.get(
+                'serverName') + ": " + details['title']
 
-                temp_list.append({'title': section.get('title', 'Unknown').encode('utf-8'),
-                                  'address': ip_address + ":" + port,
-                                  'serverName': name,
-                                  'uuid': uuid,
-                                  'sectionuuid': section.get('uuid', ''),
-                                  'path': path,
-                                  'token': section.get('accessToken', None),
-                                  'location': "local",
-                                  'art': section.get('art', None),
-                                  'local': '1',
-                                  'type': section.get('type', ''),
-                                  'owned': '1'})
-            cache.write(cache_file, temp_list)
-        return temp_list
+        extraData = {'fanart_image': Media.getFanart(section, section.get('address')),
+                     'type': "Video",
+                     'thumb': THUMB,
+                     'token': section.get('token', None)}
 
-    @staticmethod
-    def getMyplexSections():
-        printDebug("== ENTER: getMyplexSections ==", False)
+        # Determine what we are going to do process after a link is
+        # selected by the user, based on the content we find
 
-        cache_file = "%smyplex.sections.cache" % (CACHE_DATA)
-        success, temp_list = cache.check(cache_file)
+        path = section['path']
 
-        if not success:
-            html = plexbmc.servers.MyPlexServers.getMyPlexURL('/pms/system/library/sections')
-
-            if html is False:
-                return {}
-
-            tree = plexbmc.etree.fromstring(html).getiterator("Directory")
-            temp_list = []
-            for sections in tree:
-                temp_list.append({'title': sections.get('title', 'Unknown').encode('utf-8'),
-                                  'address': sections.get('host', 'Unknown') + ":" + sections.get('port'),
-                                  'serverName': sections.get('serverName', 'Unknown').encode('utf-8'),
-                                  'uuid': sections.get('machineIdentifier', 'Unknown'),
-                                  'sectionuuid': sections.get('uuid', '').encode('utf-8'),
-                                  'path': sections.get('path'),
-                                  'token': sections.get('accessToken', None),
-                                  'location': "myplex",
-                                  'art': sections.get('art'),
-                                  'local': sections.get('local'),
-                                  'type': sections.get('type', 'Unknown'),
-                                  'owned': sections.get('owned', '0')})
-            cache.write(cache_file, temp_list)
-        return temp_list
-
-    @staticmethod
-    def getAllSections(server_list=None):
-        '''
-        from server_list, get a list of all the available sections
-        and deduplicate the sections list
-        @input: None
-        @return: section_list
-        '''
-        printDebug("== ENTER: getAllSections ==", False)
-
-        if server_list is None:
-            server_list = plexbmc.servers.PlexServers.discoverAll()
-        printDebug("Using servers list: " + str(server_list))
-
-        section_list = []
-        myplex_section_list = []
-        myplex_complete = False
-        local_complete = False
-
-        for server in server_list.itervalues():
-            if server['discovery'] == "local" or server['discovery'] == "auto":
-                section_details = Sections.getServerSections(
-                    server['server'], server['port'], server['serverName'], server['uuid'])
-                section_list += section_details
-                local_complete = True
-
-            elif server['discovery'] == "myplex":
-                if not myplex_complete:
-                    section_details = Sections.getMyplexSections()
-                    myplex_section_list += section_details
-                    myplex_complete = True
-        '''
-        logfile = PLUGINPATH + "/_section_list.txt"
-        with open(logfile, 'wb') as f:
-            f.write(str(section_list))
-
-        logfile = PLUGINPATH + "/_myplex_section_list.txt"
-        with open(logfile, 'wb') as f:
-            f.write(str(myplex_section_list))
-        '''
-        # Remove any myplex sections that are locally available
-        if myplex_complete and local_complete:
-            printDebug("Deduplicating myplex sections list")
-            for each_server in server_list.values():
-                printDebug("Checking server [%s]" % each_server)
-                if each_server['discovery'] == 'myplex':
-                    printDebug("Skipping as a myplex server")
-                    continue
-                myplex_section_list = [x for x in myplex_section_list if not x['uuid'] == each_server['uuid']]
-
-        section_list += myplex_section_list
-        '''
-        logfile = PLUGINPATH + "/_final_section_list.txt"
-        with open(logfile, 'wb') as f:
-            f.write(str(section_list))
-        '''
-        return section_list
-
-    @staticmethod
-    def displaySections(filter=None, shared=False):
-        printDebug("== ENTER: displaySections() ==", False)
-        xbmcplugin.setContent(plexbmc.main.PleXBMC.getHandle(), 'files')
-
-        ds_servers = plexbmc.servers.PlexServers.discoverAll()
-        numOfServers = len(ds_servers)
-        printDebug(
-            "Using list of " + str(numOfServers) + " servers: " + str(ds_servers))
-
-        for section in Sections.getAllSections(ds_servers):
-
-            if shared and section.get('owned') == '1':
+        if section.get('type') == 'show':
+            mode = plexbmc.MODE_TVSHOWS
+            if (filter is not None) and (filter != "tvshows"):
                 continue
 
-            details = {'title': section.get('title', 'Unknown')}
-
-            if len(ds_servers) > 1:
-                details['title'] = section.get(
-                    'serverName') + ": " + details['title']
-
-            extraData = {'fanart_image': Media.getFanart(section, section.get('address')),
-                         'type': "Video",
-                         'thumb': THUMB,
-                         'token': section.get('token', None)}
-
-            # Determine what we are going to do process after a link is
-            # selected by the user, based on the content we find
-
-            path = section['path']
-
-            if section.get('type') == 'show':
-                mode = plexbmc.MODE_TVSHOWS
-                if (filter is not None) and (filter != "tvshows"):
-                    continue
-
-            elif section.get('type') == 'movie':
-                mode = plexbmc.MODE_MOVIES
-                if (filter is not None) and (filter != "movies"):
-                    continue
-
-            elif section.get('type') == 'artist':
-                mode = plexbmc.MODE_ARTISTS
-                if (filter is not None) and (filter != "music"):
-                    continue
-
-            elif section.get('type') == 'photo':
-                mode = plexbmc.MODE_PHOTOS
-                if (filter is not None) and (filter != "photos"):
-                    continue
-            else:
-                printDebug(
-                    "Ignoring section " + details['title'] + " of type " + section.get('type') + " as unable to process")
+        elif section.get('type') == 'movie':
+            mode = plexbmc.MODE_MOVIES
+            if (filter is not None) and (filter != "movies"):
                 continue
 
-            if settings('secondary'):
-                mode = plexbmc.MODE_GETCONTENT
-            else:
-                path = path + '/all'
-
-            extraData['mode'] = mode
-            s_url = 'http://%s%s' % (section['address'], path)
-
-            if not settings("skipcontextmenus"):
-                context = []
-                refreshURL = "http://" + section.get('address') + section.get('path') + "/refresh"
-                libraryRefresh = "RunScript(plugin.video.plexbmc, update ," + refreshURL + ")"
-                context.append(('Refresh library section', libraryRefresh, ))
-            else:
-                context = None
-
-            # Build that listing..
-            GUI.addGUIItem(s_url, details, extraData, context)
-
-        if shared:
-            xbmcplugin.endOfDirectory(plexbmc.main.PleXBMC.getHandle(), cacheToDisc=True)
-            return
-
-        # For each of the servers we have identified
-        allservers = ds_servers
-        numOfServers = len(allservers)
-
-        if plexbmc.__settings__.getSetting('myplex_user') != '':
-            GUI.addGUIItem('http://myplexqueue', {'title': 'myplex Queue'}, {
-                           'thumb': THUMB, 'type': 'Video', 'mode': plexbmc.MODE_MYPLEXQUEUE})
-
-        for server in allservers.itervalues():
-
-            if server['class'] == "secondary":
+        elif section.get('type') == 'artist':
+            mode = plexbmc.MODE_ARTISTS
+            if (filter is not None) and (filter != "music"):
                 continue
 
-            # Plex plugin handling
-            if (filter is not None) and (filter != "plugins"):
+        elif section.get('type') == 'photo':
+            mode = plexbmc.MODE_PHOTOS
+            if (filter is not None) and (filter != "photos"):
                 continue
+        else:
+            printDebug(
+                "Ignoring section " + details['title'] + " of type " + section.get('type') + " as unable to process")
+            continue
 
-            if numOfServers > 1:
-                prefix = server['serverName'] + ": "
-            else:
-                prefix = ""
+        if settings('secondary'):
+            mode = plexbmc.MODE_GETCONTENT
+        else:
+            path = path + '/all'
 
-            details = {'title': prefix + "Channels"}
-            extraData = {'type': "Video",
-                         'thumb': THUMB,
-                         'token': server.get('token', None)}
+        extraData['mode'] = mode
+        s_url = 'http://%s%s' % (section['address'], path)
 
-            extraData['mode'] = plexbmc.MODE_CHANNELVIEW
-            u = "http://" + server['server'] + ":" + server['port'] + "/system/plugins/all"
-            GUI.addGUIItem(u, details, extraData)
+        if not settings("skipcontextmenus"):
+            context = []
+            refreshURL = "http://" + section.get('address') + section.get('path') + "/refresh"
+            libraryRefresh = "RunScript(plugin.video.plexbmc, update ," + refreshURL + ")"
+            context.append(('Refresh library section', libraryRefresh, ))
+        else:
+            context = None
 
-            # Create plexonline link
-            details['title'] = prefix + "Plex Online"
-            extraData['type'] = "file"
-            extraData['thumb'] = THUMB
-            extraData['mode'] = plexbmc.MODE_PLEXONLINE
+        # Build that listing..
+        GUI.addGUIItem(s_url, details, extraData, context)
 
-            u = "http://" + server['server'] + ":" + server['port'] + "/system/plexonline"
-            GUI.addGUIItem(u, details, extraData)
+    if shared:
+        xbmcplugin.endOfDirectory(plexbmc.main.PleXBMC.getHandle(), cacheToDisc=True)
+        return
 
-        if plexbmc.__settings__.getSetting("cache") == "true":
-            details = {'title': "Refresh Data"}
-            extraData = {}
-            extraData['type'] = "file"
+    # For each of the servers we have identified
+    allservers = ds_servers
+    numOfServers = len(allservers)
 
-            extraData['mode'] = plexbmc.MODE_DELETE_REFRESH
+    if plexbmc.__settings__.getSetting('myplex_user') != '':
+        GUI.addGUIItem('http://myplexqueue', {'title': 'myplex Queue'}, {
+                       'thumb': THUMB, 'type': 'Video', 'mode': plexbmc.MODE_MYPLEXQUEUE})
 
-            u = "http://nothing"
-            GUI.addGUIItem(u, details, extraData)
+    for server in allservers.itervalues():
 
-        # All XML entries have been parsed and we are ready to allow the user
-        # to browse around.  So end the screen listing.
-        xbmcplugin.endOfDirectory(plexbmc.main.PleXBMC.getHandle(), cacheToDisc=False)
+        if server['class'] == "secondary":
+            continue
+
+        # Plex plugin handling
+        if (filter is not None) and (filter != "plugins"):
+            continue
+
+        if numOfServers > 1:
+            prefix = server['serverName'] + ": "
+        else:
+            prefix = ""
+
+        details = {'title': prefix + "Channels"}
+        extraData = {'type': "Video",
+                     'thumb': THUMB,
+                     'token': server.get('token', None)}
+
+        extraData['mode'] = plexbmc.MODE_CHANNELVIEW
+        u = "http://" + server['server'] + ":" + server['port'] + "/system/plugins/all"
+        GUI.addGUIItem(u, details, extraData)
+
+        # Create plexonline link
+        details['title'] = prefix + "Plex Online"
+        extraData['type'] = "file"
+        extraData['thumb'] = THUMB
+        extraData['mode'] = plexbmc.MODE_PLEXONLINE
+
+        u = "http://" + server['server'] + ":" + server['port'] + "/system/plexonline"
+        GUI.addGUIItem(u, details, extraData)
+
+    if plexbmc.__settings__.getSetting("cache") == "true":
+        details = {'title': "Refresh Data"}
+        extraData = {}
+        extraData['type'] = "file"
+
+        extraData['mode'] = plexbmc.MODE_DELETE_REFRESH
+
+        u = "http://nothing"
+        GUI.addGUIItem(u, details, extraData)
+
+    # All XML entries have been parsed and we are ready to allow the user
+    # to browse around.  So end the screen listing.
+    xbmcplugin.endOfDirectory(plexbmc.main.PleXBMC.getHandle(), cacheToDisc=False)
 
 
 class OtherModes:
@@ -2431,3 +2303,6 @@ class GUI:
 
         GUI.addGUIItem(u, details, extraData, context, folder=False)
         return
+
+
+

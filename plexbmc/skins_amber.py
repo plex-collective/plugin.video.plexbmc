@@ -26,7 +26,7 @@ def amberskin():
     printDebug("Using list of " + str(len(server_list)) + " servers: " + str(server_list))
 
     # For each of the servers we have identified
-    sections = plexbmc.gui.Sections.getAllSections(server_list)
+    sections = plexbmc.servers.Sections.getAllSections(server_list)
     printDebug("Total sections: " + str(len(sections)), False)
 
     for section in sections:
@@ -504,7 +504,7 @@ def fullShelf(server_list={}):
             aToken = plexbmc.servers.MyPlexServers.getAuthDetails({'token': token})
             qToken = '?' + aToken
 
-            sections = plexbmc.gui.Sections.getAllSections(server_list)
+            sections = plexbmc.servers.Sections.getAllSections(server_list)
 
             # XXX: Unused variable 'ra_log_count'
             ra_log_count = 1

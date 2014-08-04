@@ -136,7 +136,7 @@ def skin(server_list=None, skin_type=None):
         server_list = plexbmc.servers.PlexServers.discoverAll()
 
     # For each of the servers we have identified
-    for section in plexbmc.gui.Sections.getAllSections(server_list):
+    for section in plexbmc.servers.Sections.getAllSections(server_list):
         extraData = {
             'fanart_image': plexbmc.gui.Media.getFanart(
                 section, section['address']), 'thumb': plexbmc.gui.Media.getFanart(
@@ -769,85 +769,42 @@ class Skin:
     @staticmethod
     def popluateLibrarySections(container_id=None):
         # Gather some data and set the window properties
-        printDebug("== ENTER: amberskin() ==", False)
+        printDebug("== ENTER: popluateLibrarySections() ==", False)
 
-        # Create a shortcut
-        setProperty = Skin.setProperty
-
-        # Get the global host variable set in settings
-
-        # XXX: Unused variable 'WINDOW'
-        WINDOW = xbmcgui.Window(10000)
-
-        # XXX: Unused variable 'sectionCount'
-        # XXX: Unused variable 'serverCount'
-        # XXX: Unused variable 'sharedCount'
-        sectionCount = 0
-        serverCount = 0
-        sharedCount = 0
-
-        shared_flag = {}
-        hide_shared = plexbmc.settings('hide_shared')
-
+        # Servers
         server_list = plexbmc.servers.PlexServers.discoverAll()
         printDebug("Using list of " + str(len(server_list)) + " servers: " + str(server_list))
 
-        # For each of the servers we have identified
-        sections = plexbmc.gui.Sections.getAllSections(server_list)
+        # Sections
+        sections = plexbmc.servers.Sections.getAllSections(server_list)
         printDebug("Total sections: " + str(len(sections)), False)
 
-        listitems = list()
+        mode_map = {
+            'show': ("VideoLibrary", plexbmc.MODE_TVSHOWS),
+            'movie': ("VideoLibrary", plexbmc.MODE_MOVIES),
+            'artist': ("MusicFiles", plexbmc.MODE_ARTISTS),
+            'photo': ("Pictures", plexbmc.MODE_PHOTOS)
+        }
+
+        setProperty = Skin.setProperty
+        hide_shared = plexbmc.settings('hide_shared') and settings('myplex_user')
+        listitems = []
 
         for section in sections:
-            printDebug("=Enter amberskin section=", False)
+            printDebug("=Enter popluateLibrarySections section=", False)
             printDebug(str(section), False)
-            printDebug("=/section=", False)
+
+            if hide_shared and section.get('owned') == '0':
+                continue
 
             extraData = {'fanart_image': plexbmc.gui.Media.getFanart(section, section['address']), 'thumb': THUMB}
 
             # Determine what we are going to do process after a link is
             # selected by the user, based on the content we find
+            window, mode = mode_map.get(section['type'], ("Videos", ""))
+
             path = section['path']
-
-            if section['type'] == 'show':
-                if hide_shared == "true" and section.get('owned') == '0':
-                    shared_flag['show'] = True
-                    sharedCount += 1
-                    continue
-                window = "VideoLibrary"
-                mode = plexbmc.MODE_TVSHOWS
-            elif section['type'] == 'movie':
-                if hide_shared == "true" and section.get('owned') == '0':
-                    shared_flag['movie'] = True
-                    sharedCount += 1
-                    continue
-                window = "VideoLibrary"
-                mode = plexbmc.MODE_MOVIES
-            elif section['type'] == 'artist':
-                if hide_shared == "true" and section.get('owned') == '0':
-                    shared_flag['artist'] = True
-                    sharedCount += 1
-                    continue
-                window = "MusicFiles"
-                mode = plexbmc.MODE_ARTISTS
-            elif section['type'] == 'photo':
-                if hide_shared == "true" and section.get('owned') == '0':
-                    shared_flag['photo'] = True
-                    sharedCount += 1
-                    continue
-                window = "Pictures"
-            else:
-                if hide_shared == "true" and section.get('owned') == '0':
-                    shared_flag['movie'] = True
-                    sharedCount += 1
-                    continue
-                window = "Videos"
-                mode = plexbmc.MODE_PHOTOS
-
             aToken = plexbmc.servers.MyPlexServers.getAuthDetails(section)
-
-            # XXX: Unused variable 'qToken'
-            qToken = plexbmc.servers.MyPlexServers.getAuthDetails(section, prefix='?')
 
             print 'secondary: %s' % settings('secondary')
             if settings('secondary'):
@@ -856,13 +813,7 @@ class Skin:
                 path = path + '/all'
 
             s_url = 'http://%s%s&mode=%s%s' % (section['address'], path, mode, aToken)
-
-            #xbmcplugin.setContent(pluginhandle, 'movies')
             path = "plugin://plugin.video.plexbmc/?url={0}".format(s_url)
-            #partial_path = "plugin://plugin.video.plexbmc/?url=http://{0}{1}".format(section['address'], section['path'])
-            #path2 = "ActivateWindow({0},plugin://plugin.video.plexbmc/?url={1},return)".format(window, s_url)
-            #path3 = "ActivateWindow(" + window + ",plugin://plugin.video.plexbmc/?url=" + s_url + ",return)"
-
             base_url = 'plugin://plugin.video.plexbmc/?url=http://'
             command_template = "ActivateWindow(%s,return)"
             base_template = "{0[window]},{0[base_url]}{0[address]}{0[path]}{0[section]}"
@@ -925,6 +876,32 @@ class Skin:
 
             listitems.append((path, listitem, True))
 
+        # Shared Sections
+        if hide_shared:
+            #path="plugin://plugin.video.plexbmc?content=sections&append=300"
+            listitem = xbmcgui.ListItem(
+                label="Shared Content",
+                label2='Shared',
+                iconImage=None,
+                thumbnailImage=None,
+                path="plugin://plugin.video.plexbmc/?url=/&mode=%s" % plexbmc.MODE_SHARED_ALL
+            )
+            setProperty(listitem, 'shared', "true")
+            setProperty(listitem, 'type', "shared")
+            setProperty(listitem, 'node.target', "VideoLibrary")
+            listitems.append((info['path'], listitem, True))
+
+        # Channels
+        listitem = xbmcgui.ListItem(
+            label=plexbmc.__localize__(30098),
+            label2='channels',
+            iconImage=None,
+            thumbnailImage="special://skin/backgrounds/Channels.jpg",
+            path="plugin://plugin.video.plexbmc/?mode=22&url=http://online%2fsystem%2fplugins%2fall",
+        )
+        setProperty(listitem, 'type', "channels")
+        setProperty(listitem, 'node.target', "Videos")
+        listitems.append((info['path'], listitem, True))
 
         '''
         print 'Finished amberskin Content Library population'##So this is where we really start the plugin.
@@ -1109,17 +1086,6 @@ class Skin:
 
     #XXX: Skin.fullShelf(server_list)
     '''
-        info = {}
-        # Channels
-        info['label'] = plexbmc.__localize__(30098)
-        info['label2'] = 'channels'
-        info['iconImage'] = None
-        info['thumbnailImage'] = "special://skin/backgrounds/Channels.jpg"
-        #info['path'] = "plugin://plugin.video.plexbmc/?mode=22&amp;url=http://online%2fsystem%2fplugins%2fall"
-        info['path'] = "plugin://plugin.video.plexbmc/?mode=22&url=http://online%2fsystem%2fplugins%2fall"
-        listitem = xbmcgui.ListItem(**info)
-        listitem.setProperty('node.target', 'Videos')
-        listitems.append((info['path'], listitem, True))
         '''
         <item id="50" description="Channels">
           <visible>Skin.HasSetting(plexbmc) + !Skin.HasSetting(Channels.Hide)</visible>
@@ -1152,22 +1118,13 @@ class Skin:
                 for (target, listitem, isFolder) in listitems:
                     print listitem
                     # home_list.addItem(listitem)
-                    # home_list.setStaticContent(listitem)
-                    testitems.append(listitem)
+                    home_list.setStaticContent(listitem)
+                    #testitems.append(listitem)
                 # home_list.setStaticContent(items=testitems)
-                home_list.addItems(items=testitems)
+                #home_list.addItems(items=testitems)
 
                 # home_list.addItems(testitems)
                 # home_list.setVisible(True)
-
-                # window.doModal()
-                li = home_list.getListItem(0)
-                print li.getLabel()
-                print home_list.size()
-                # print dir(home_list)
-                print home_list.getId()
-                print window.getFocusId()
-                print xbmcgui.getCurrentWindowId()
             except Exception:
                 printDebug('Unable to getControl(%s)' % str(container_id))
             #xbmcplugin.addDirectoryItems(300, listitems)
