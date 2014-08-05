@@ -645,7 +645,12 @@ class Utility:
 
     @staticmethod
     def photoTranscode(server, url, width=1280, height=720):
-        return 'http://%s/photo/:/transcode?url=%s&width=%s&height=%s' % (server, urllib.quote_plus(url), width, height)
+        # FIXME: url is set to localhost?  dunno if that is correct
+        # find points of use and make sure server is clean by time it gets here
+        new_url, parts = plexbmc.skins.fixURLParts(server)
+
+        return '%s://%s/photo/:/transcode?url=%s&width=%s&height=%s' % (parts.scheme, parts.netloc, urllib.quote_plus(url), width, height)
+        #return 'http://%s/photo/:/transcode?url=%s&width=%s&height=%s' % (server, urllib.quote_plus(url), width, height)
 
     @staticmethod
     def getLinkURL(url, pathData, server, season_shelf=False):

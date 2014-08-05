@@ -44,8 +44,8 @@ import xbmcaddon  # pylint: disable=F0401
 
 # If DEBUG/DEBUG_DEV == None, skin settings will be used.  Otherwise
 # override the skin settings by setting to True or False
-DEBUG = True
-DEBUG_DEV = True
+DEBUG = None
+DEBUG_DEV = None
 
 # Get the setting from the appropriate file.
 DEFAULT_PORT = "32400"

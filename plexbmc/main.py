@@ -1,3 +1,4 @@
+from urlparse import parse_qs, urlparse
 import sys
 import urllib
 import xbmc  # pylint: disable=F0401
@@ -14,40 +15,61 @@ import plexbmc.servers
 import plexbmc.utils
 
 
-def getParams(paramlist):
-    printDebug("== ENTER: get_params ==", False)
-    printDebug("Parameter string/list: " + str(paramlist))
+def parseQueryString(query, lowercase_key=True, value_list=False):
+    '''
+    Take the query string or list and parse them to create a dictionary
+    of key/value pairs.  Any string that is not a valid query string is
+    ignored.
+    @ input: (string or list) query - url or parts of url to parse
+    @ input: (bool) lowercase_key - convert keys to lowercase
+    @ input: (bool) value_list - return values as a list.  If Fasle and
+             there are multiple values, only the last value will be included
+             in result
+    @ return: dictionary of key (lowercase) / [value] parameters
+    '''
+    printDebug("== ENTER: parseQueryString ==", False)
+    printDebug("Query string/list: " + str(query))
 
-    param = {}
-    try:
-        # Make sure parmlist is a list, not a string
-        paramlist = paramlist if isinstance(paramlist, list) else [paramlist]
+    # Make sure parmlist is a list, not a string
+    query = query if isinstance(query, list) else [query]
 
-        for paramstring in paramlist:
-            if len(paramstring) >= 2:
-                params = paramstring
+    parameters = {}
+    for query_string in query:
+        parameters.update(parse_qs(urlparse(query_string.strip()).query, keep_blank_values=True))
+    print "PleXBMC -> Detected parameters: " + str(parameters)
+    if lowercase_key:
+        parameters = dict((k.lower(), v) for k, v in parameters.items())
+    if not value_list:
+        parameters = dict((k, v[0]) for k, v in parameters.items())
+    return parameters
 
-                if params[0] == "?":
-                    cleanedparams = params[1:]
-                else:
-                    cleanedparams = params
+    #try:
+        #params = {}
+        # for query_string in query:
+            # if len(query_string) >= 2:
+                # params = query_string
 
-                if (params[len(params) - 1] == '/'):
-                    params = params[0:len(params) - 2]
+                # if params[0] == "?":
+                    # cleanedparams = params[1:]
+                # else:
+                    # cleanedparams = params
 
-                pairsofparams = cleanedparams.split('&')
-                for i in range(len(pairsofparams)):
-                    splitparams = {}
-                    splitparams = pairsofparams[i].split('=')
-                    if (len(splitparams)) == 2:
-                        param[splitparams[0]] = splitparams[1]
-                    elif (len(splitparams)) == 3:
-                        param[splitparams[0]] = splitparams[
-                            1] + "=" + splitparams[2]
-            print "PleXBMC -> Detected parameters: " + str(param)
-    except:
-        printDebug("Parameter parsing failed: " + str(paramlist))
-    return param
+                # if (params[len(params) - 1] == '/'):
+                    # params = params[0:len(params) - 2]
+
+                # pairsofparams = cleanedparams.split('&')
+                # for i in range(len(pairsofparams)):
+                    # splitparams = {}
+                    # splitparams = pairsofparams[i].split('=')
+                    # if (len(splitparams)) == 2:
+                        # param[splitparams[0]] = splitparams[1]
+                    # elif (len(splitparams)) == 3:
+                        # param[splitparams[0]] = splitparams[
+                            # 1] + "=" + splitparams[2]
+            # print "PleXBMC -> Detected parameters: " + str(param)
+    #except:
+    #    printDebug("Parameter parsing failed: " + str(query))
+    #return param
 
 import xbmcgui
 class MyWinXML(xbmcgui.WindowXML):
@@ -112,6 +134,11 @@ def contentHandler(content, params):
 
         #test()
         plexbmc.skins.Skin.popluateLibrarySections(container_id, items)
+    elif 'recentlyadded' in content:
+        section = params.get('section', None)
+        if not section:
+            return
+        plexbmc.skins.recentlyAdded(section)
 
 
 class PleXBMC(object):
@@ -130,7 +157,7 @@ class PleXBMC(object):
         printDebug("PleXBMC -> Script argument is " + str(sys.argv), False)
         print "PleXBMC -> Script argument is " + str(sys.argv)
 
-        params = getParams(sys.argv)
+        params = parseQueryString(sys.argv)
 
         # Now try and assign some data to them
         param_url = params.get('url', None)
