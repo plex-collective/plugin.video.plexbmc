@@ -11,6 +11,7 @@ import plexbmc.skins
 import plexbmc.skins_amber
 import plexbmc.gui
 import plexbmc.servers
+import plexbmc.utils
 
 
 def getParams(paramlist):
@@ -94,8 +95,14 @@ class PleXBMC(object):
         print 'self.getHandle(): %s' % str(self.getHandle())
         if content:
             # Don't overwrite contents, append it
-            container_id = None if not params.get(
-                'append', '').isdigit() else int(params.get('append'))
+            container_id = None if not params.get('append', '').isdigit() else int(params.get('append'))
+            static = params.get('static', '')
+
+            static = params.get('static', '')
+            if static:
+                static_xml = plexbmc.utils.readFile(static)
+                if static_xml is None:
+                    static = ''
 
             if 'sections' in content:
                 plexbmc.skins.Skin.popluateLibrarySections(container_id)
