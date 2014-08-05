@@ -1,6 +1,6 @@
 import codecs
 import xbmcvfs
-from plexbmc import printDebug
+from plexbmc import printDebug, etree
 
 try:
     from codecs import BOM_UTF8
@@ -25,3 +25,13 @@ def readFile(name):
         except: pass
 
     return content
+
+
+def convertTextToXML(text):
+    try:
+        elem = etree.fromstring(text)
+    except plexbmc.etree.ParseError:
+        printDebug("PleXBMC -> Failed to convert XML: %s" % text, True)
+        return None
+    return elem
+

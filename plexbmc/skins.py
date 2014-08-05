@@ -767,7 +767,7 @@ class Skin:
                 printDebug('setProperty(%s, %s)' % (name, template.format(info)), False)
 
     @staticmethod
-    def popluateLibrarySections(container_id=None):
+    def popluateLibrarySections(container_id=None, static_content=None):
         # Gather some data and set the window properties
         printDebug("== ENTER: popluateLibrarySections() ==", False)
 
@@ -870,7 +870,11 @@ class Skin:
             #elif section['type'] == "movie":
             #    setProperty(listitem, 'search', info, full_template, section='/search?type=1')
 
-            setProperty(listitem, 'shared', "false")
+            if section.get('owned') == '1':
+                setProperty(listitem, 'shared', "false")
+            else:
+                setProperty(listitem, 'shared', "true")
+
             setProperty(listitem, 'node.target', window)
             #listitem.setProperty('node.target_url', path2)
 
@@ -1131,8 +1135,59 @@ class Skin:
             # xbmcplugin.endOfDirectory(handle=container_id)
         else:
             xbmcplugin.addDirectoryItems(plexbmc.main.PleXBMC.getHandle(), listitems)
+            if static_content:
+                xbmcplugin.addDirectoryItems(plexbmc.main.PleXBMC.getHandle(), static_content)
             xbmcplugin.endOfDirectory(handle=plexbmc.main.PleXBMC.getHandle())
             #xbmcplugin.endOfDirectory(pluginhandle, succeeded=True, updateListing=False, cacheToDisc=False)
+
+
+    @staticmethod
+    def createStaticListitems(static_xml_text, ids):
+        setProperty = Skin.setProperty
+
+        elem = plexbmc.utils.convertTextToXML(static_xml_text)
+        if elem is None:
+            return []
+
+        for content_id in ids:
+            # Find the content node for specified id
+            content = elem.find("./content/[@id='%s']" % content_id)
+            if content is None:
+                return []
+
+            # Now grab all the item nodes
+            items = content.findall('item')
+            if items is None:
+                return []
+
+            print content_id
+
+        '''
+        <item id="10" description="Settings">
+            <visible>!Skin.HasSetting(QuitMenu_Show_Settings)</visible>
+            <label>$LOCALIZE[5]</label>
+            <thumb fallback="special://skin/backgrounds/Settings.jpg">$INFO[Skin.String(Settings.Background)]</thumb>
+            <onclick>ActivateWindow(Settings)</onclick>
+        </item>
+            label=plexbmc.__localize__(30098),
+            path="plugin://plugin.video.plexbmc/?mode=22&url=http://online%2fsystem%2fplugins%2fall",
+        '''
+        # XXX: TEST
+
+        listitems = []
+        listitem = xbmcgui.ListItem(
+            label='$LOCALIZE[5]',
+            label2=None,
+            iconImage=None,
+            thumbnailImage="special://skin/backgrounds/Channels.jpg",
+            path=None,
+        )
+        setProperty(listitem, 'node.target', "Settings")
+        #listitems.append((info['path'], listitem, True))
+        listitems.append(('', listitem, True))
+
+        return listitems
+
 
     @staticmethod
     def getShelfThumb(data, server, seasonThumb=0, width=400, height=400):

@@ -49,6 +49,70 @@ def getParams(paramlist):
         printDebug("Parameter parsing failed: " + str(paramlist))
     return param
 
+import xbmcgui
+class MyWinXML(xbmcgui.WindowXML):
+    def __init__(self, strXMLname, strFallbackPath, strDefaultName, forceFallback):
+        # Changing the three varibles passed won't change, anything
+        # Doing strXMLname = "bah.xml" will not change anything.
+        # don't put GUI sensitive stuff here (as the xml hasn't been read yet
+        # Idea to initialize your variables here
+        pass
+
+    def onInit(self):
+        # Put your List Populating code/ and GUI startup stuff here
+        self.close()
+
+    def onAction(self, action):
+        # Same as normal python Windows.
+        if action == ACTION_PREVIOUS_MENU:
+            self.close()
+
+    def onClick(self, controlID):
+        """
+            Notice: onClick not onControl
+            Notice: it gives the ID of the control not the control object
+        """
+        pass
+
+    def onFocus(self, controlID):
+        pass
+
+import os
+def test():
+    print 'test start'
+    #win = MyWinXML('special://skin/1080i/Static2.xml', os.getcwd())
+    #win = MyWinXML('Static2.xml', '/home/jason/src/skin.amber/resources/skins')
+    win = MyWinXML('custom12345.xml', '/home/jason/src/skin.amber', 'Default', '720p')
+    win.doModal()
+
+    print 'test'
+
+def contentHandler(content, params):
+    '''
+    Prepares and calls specific content handlers based on paramaters received
+    '''
+    if 'sections' in content:
+        # XXX: append will not work with current implementation of XBMC
+        # Don't overwrite contents, append it
+        static_xml_text = None
+        items = []
+
+        container_id = None if not params.get('append', '').isdigit() else int(params.get('append'))
+        static = params.get('static', '')
+
+        if static:
+            static_xml_text = plexbmc.utils.readFile(static)
+
+            ids = params.get('ids', None)
+            if ids:
+                ids = ids.split(',')
+
+            if static_xml_text and ids:
+                items = plexbmc.skins.Skin.createStaticListitems(static_xml_text, ids)
+
+        #test()
+        plexbmc.skins.Skin.popluateLibrarySections(container_id, items)
+
 
 class PleXBMC(object):
     _plugin_handle = None
@@ -79,33 +143,20 @@ class PleXBMC(object):
         param_transcodeOverride = int(params.get('transcode', 0))
 
         # setToken
-        token = params.get('X-Plex-Token', None)
-        self.setToken(token)
-        #self.setToken(params.get('X-Plex-Token', None))
+        self.setToken(params.get('X-Plex-Token', None))
 
         # plugin handle
-        plugin_handle = None if not (len(sys.argv) >= 1 and sys.argv[1].isdigit()) else int(sys.argv[1])
-        self.setHandle(plugin_handle)
-        #self.setHandle(None if not (len(sys.argv) >= 1 and sys.argv[1].isdigit()) else int(sys.argv[1]))
+        self.setHandle(None if not (len(sys.argv) >= 1 and sys.argv[1].isdigit()) else int(sys.argv[1]))
 
+        # mode
         mode = - 1 if not params.get('mode', '').isdigit() else int(params.get('mode'))
+
         force = params.get('force', False)
         content = params.get('content', None)
 
-        print 'self.getHandle(): %s' % str(self.getHandle())
+        # Begin process of parsing request
         if content:
-            # Don't overwrite contents, append it
-            container_id = None if not params.get('append', '').isdigit() else int(params.get('append'))
-            static = params.get('static', '')
-
-            static = params.get('static', '')
-            if static:
-                static_xml = plexbmc.utils.readFile(static)
-                if static_xml is None:
-                    static = ''
-
-            if 'sections' in content:
-                plexbmc.skins.Skin.popluateLibrarySections(container_id)
+            contentHandler(content, params)
 
         # Populate Skin variables
         elif str(sys.argv[1]) == "skin":
