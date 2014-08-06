@@ -151,9 +151,9 @@ def contentHandler(content, params):
         section = params.get('section', None)
         if not section:
             return
-        #plexbmc.skins.deck(section)
-        test = plexbmc.info.Test()
-        test.start()
+        plexbmc.skins.deck(section)
+        #test = plexbmc.info.Test()
+        #test.start()
 
 
 class PleXBMC(object):
