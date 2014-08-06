@@ -13,6 +13,7 @@ import plexbmc.skins_amber
 import plexbmc.gui
 import plexbmc.servers
 import plexbmc.utils
+import plexbmc.info
 
 
 def parseQueryString(query, lowercase_key=True, value_list=False):
@@ -150,7 +151,9 @@ def contentHandler(content, params):
         section = params.get('section', None)
         if not section:
             return
-        plexbmc.skins.deck(section)
+        #plexbmc.skins.deck(section)
+        test = plexbmc.info.Test()
+        test.start()
 
 
 class PleXBMC(object):

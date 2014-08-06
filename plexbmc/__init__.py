@@ -76,7 +76,7 @@ __localize__ = __addon__.getLocalizedString
 __cwd__ = xbmc.translatePath(__addon__.getAddonInfo('path')).decode('utf-8')
 
 BASE_RESOURCE_PATH = xbmc.translatePath(os.path.join(__cwd__, 'resources', 'lib'))
-sys.path.append(BASE_RESOURCE_PATH)
+sys.path.insert(1, BASE_RESOURCE_PATH)
 
 PLUGINPATH = xbmc.translatePath(os.path.join(__cwd__))
 CACHE_DATA = __cachedir__
