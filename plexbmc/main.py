@@ -134,18 +134,23 @@ def contentHandler(content, params):
 
         #test()
         plexbmc.skins.Skin.popluateLibrarySections(container_id, items)
-    elif 'recentlyadded' in content:
+    #elif 'recentlyadded' in content:
+    #    section = params.get('section', None)
+    #    if not section:
+    #        return
+    #    plexbmc.skins.deckRecentlyAdded(section)
+    #    #plexbmc.skins.deck(section)
+    #elif 'ondeck' in content:
+    #    section = params.get('section', None)
+    #    if not section:
+    #        return
+    #    plexbmc.skins.deckOnDeck(section)
+    #    #plexbmc.skins.deck(section)
+    elif content in ['ondeck', 'recentlyadded', 'recentlyviewed']:
         section = params.get('section', None)
         if not section:
             return
-        plexbmc.skins.deckRecentlyAdded(section)
-        #plexbmc.skins.deck(section)
-    elif 'ondeck' in content:
-        section = params.get('section', None)
-        if not section:
-            return
-        plexbmc.skins.deckOnDeck(section)
-        #plexbmc.skins.deck(section)
+        plexbmc.skins.deck(section)
 
 
 class PleXBMC(object):

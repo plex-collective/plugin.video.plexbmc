@@ -824,10 +824,12 @@ class Skin:
             full_template = command_template % (base_template + "&mode={0[mode]}{0[token]}")
 
             # XXX: on deck tests!
-            recent_url = section.get('address') + section.get("path") + "/recentlyAdded"
-            recent_url = plexbmc.servers.PlexServers.normalizeURL(recent_url, server_list, section)
-            ondeck_url = section.get('address') + section.get("path") + "/onDeck"
-            ondeck_url = plexbmc.servers.PlexServers.normalizeURL(ondeck_url, server_list, section)
+            recently_added_path = section.get('address') + section.get("path") + "/recentlyAdded"
+            recently_added_path = plexbmc.servers.PlexServers.normalizeURL(recently_added_path, server_list, section)
+            ondeck_path = section.get('address') + section.get("path") + "/onDeck"
+            ondeck_path = plexbmc.servers.PlexServers.normalizeURL(ondeck_path, server_list, section)
+            recently_viewed_path = section.get('address') + section.get("path") + "/recentlyViewed"
+            recently_viewed_path = plexbmc.servers.PlexServers.normalizeURL(recently_viewed_path, server_list, section)
 
             info = {}
             info['label'] = section['title']
@@ -855,8 +857,8 @@ class Skin:
             setProperty(listitem, 'token', aToken)
             setProperty(listitem, 'window', window)
             setProperty(listitem, 'path', section['path'])
-            #setProperty(listitem, 'partial', info, partial_template, section='')
-            setProperty(listitem, 'partial_path', info, partial_template, section='')
+            setProperty(listitem, 'partial', info, partial_template, section='')
+            #setProperty(listitem, 'partial_path', info, partial_template, section='')
             setProperty(listitem, 'search', info, full_template, section='/search?type=1')
 
             # Dunno if amber needs these paths, so I will create new ones for auto-pupulate
@@ -865,9 +867,10 @@ class Skin:
             setProperty(listitem, 'ondeck', info, full_template, section='/onDeck')
             setProperty(listitem, 'released', info, full_template, section='/newest')
             # New Deck
-            #listitem.setProperty('Plex', recent_url)
-            listitem.setProperty('DeckRecentlyAdded', recent_url)
-            listitem.setProperty('DeckOnDeck', ondeck_url)
+            #listitem.setProperty('Plex', recently_added)
+            listitem.setProperty('DeckRecentlyAdded', recently_added_path)
+            listitem.setProperty('DeckRecentlyViewed', recently_viewed_path)
+            listitem.setProperty('DeckOnDeck', ondeck_path)
 
             setProperty(listitem, 'all', info, full_template, section='/all')
 
@@ -1337,20 +1340,19 @@ def deck(section_path):
     #    printDebug("Disabling all shelf items")
     #    return
 
-    # Get the global host variable set in settings
-    WINDOW = xbmcgui.Window(10000)
+    #WINDOW = xbmcgui.Window(10000)
+    #recentMovieCount = 1
+    #recentSeasonCount = 1
+    #recentMusicCount = 1
+    #recentPhotoCount = 1
+    #ondeckMovieCount = 1
+    #ondeckSeasonCount = 1
+    #recent_list = {}
+    #ondeck_list = {}
+    #full_count = 0
+    #ep_helper = {}  # helper season counter
+    #ra_item_count = 1
 
-    recentMovieCount = 1
-    recentSeasonCount = 1
-    recentMusicCount = 1
-    recentPhotoCount = 1
-    ondeckMovieCount = 1
-    ondeckSeasonCount = 1
-    recent_list = {}
-    ondeck_list = {}
-    full_count = 0
-
-    randomNumber = str(random.randint(1000000000, 9999999999))
 
     # XXX:
     # TAKE care of this in section that creates menu section items
@@ -1363,14 +1365,11 @@ def deck(section_path):
         return
     tree = plexbmc.utils.convertTextToXML(content)
     if tree is None:
-        printDebug("PLEXBMC -> RecentlyAdded items not found on: " + section_path, False)
+        printDebug("PLEXBMC -> Deck items not found for: " + section_path, False)
         return
 
     # If we do not get an UUID, I believe the section is empty; or wrong section
     libraryuuid = tree.get("librarySectionUUID", '')
-
-    ep_helper = {}  # helper season counter
-    ra_item_count = 1
 
     listitems = []
     for media in tree:
@@ -1409,6 +1408,23 @@ def deck(section_path):
         #s_thumb = skins.Skin.getShelfThumb(media, server_address, seasonThumb=1) + aToken
 
         # path ============================================================================================================
+        mode_map = {
+            'show': ('VideoLibrary', plexbmc.MODE_TVSHOWS),
+            'episode': ('Videos', plexbmc.MODE_TVEPISODES),
+            'season': ('VideoLibrary', plexbmc.MODE_TVSHOWS),
+            #'movie': ('VideoLibrary', plexbmc.MODE_MOVIES),
+            'movie': ('VideoLibrary', plexbmc.MODE_PLAYSHELF),
+            'artist': ('MusicFiles', plexbmc.MODE_ARTISTS),
+            'album': ('MusicFiles', plexbmc.MODE_TRACKS),
+            'photo': ('Pictures', plexbmc.MODE_PHOTOS),
+            'photos': ('Pictures', plexbmc.MODE_PHOTOS),
+            'video': ('VideoLibrary', plexbmc.MODE_PLEXPLUGINS),
+            'music': ('MusicFiles', plexbmc.MODE_MUSIC),
+            'channel_window': ('VideoLibrary', plexbmc.MODE_GETCONTENT),
+        }
+        randomNumber = str(random.randint(1000000000, 9999999999))
+        random_window = randomNumber if media.get('type', None) == 'movie' else ''
+        window, mode = mode_map.get(media.get('type', ("Videos", "")))
         season = True if media.get('type', None) == 'episode' else False
 
         parts = getURLParts(section_path)
@@ -1422,9 +1438,9 @@ def deck(section_path):
         server = urlparse.urlunparse(parts)
 
         # FIXME:  Lets be sure this wont break... dont forget about token!
-        url = "plugin://plugin.video.plexbmc?url=%s&mode=%s" % (plexbmc.gui.Utility.getLinkURL(
+        url = "plugin://plugin.video.plexbmc?url=%s&mode=%s%s" % (plexbmc.gui.Utility.getLinkURL(
             server, media, server, season),
-            plexbmc.MODE_TVEPISODES)
+            mode, random_window)
         if token:
             url = updateURLToken(url, token)
 
@@ -1439,18 +1455,8 @@ def deck(section_path):
             #if plexbmc.settings('movieShelf') == "false":
             #    WINDOW.clearProperty("Plexbmc.LatestMovie.1.Path")
             #    continue
-            # XXX: FIXME:  check all plexbmc setting that are looking for booleans cause we dont return text anymore!
             #if plexbmc.settings('hide_watched_recent_items') == 'false' or media.get("viewCount", 0) == 0:
             #if not plexbmc.settings('hide_watched_recent_items') or media.get("viewCount", 0) == 0:
-
-            #m_url = "plugin://plugin.video.plexbmc?url=%s&mode=%s&t=%s%s" % (plexbmc.gui.Utility.getLinkURL(
-            #    'http://' + server_address,
-            #    media,
-            #    server_address),
-            #    plexbmc.MODE_PLAYSHELF,
-            #    randomNumber,
-            #    aToken)
-
 
             if media.get('duration') > 0:
                #movie_runtime = media.get('duration', '0')
@@ -1482,37 +1488,18 @@ def deck(section_path):
                     m_genre.append(child.get('tag'))
                 else:
                     continue
-            #WINDOW.setProperty("Plexbmc.LatestMovie.%s.Genre" % recentMovieCount, ", ".join(m_genre).encode('UTF-8'))
             listitem.setProperty('Genre', ", ".join(m_genre).encode('UTF-8'))
-
-            #recentMovieCount += 1
-            #printDebug("Building Recent window title: %s" % media.get('title', 'Unknown').encode('UTF-8'))
-            #printDebug("Building Recent window url: %s" % m_url)
-            #printDebug("Building Recent window thumb: %s" % m_thumb)
-
-            listitem.setProperty('node.target', "VideoLibrary")
+            # TODO:  Figure out the PlayShelf target
+            #listitem.setProperty('node.target', random_window)
+            listitem.setProperty('node.target', window)
             listitems.append((url, listitem, True))
 
+            #recentMovieCount += 1
         elif media.get('type', None) == "episode":
             printDebug("Found an Recent episode entry [%s]" % (media.get('title', 'Unknown').encode('UTF-8'), ))
-
             #if plexbmc.settings('tvShelf') == "false":
             #    WINDOW.clearProperty("Plexbmc.LatestEpisode.1.Path")
             #    continue
-
-            #s_url = "ActivateWindow(Videos, plugin://plugin.video.plexbmc?url=%s&mode=%s%s, return)" % (plexbmc.gui.Utility.getLinkURL(
-            #    'http://' + server_address, media, server_address, season_shelf=True),
-            #    plexbmc.MODE_TVEPISODES, aToken)
-            #s_thumb = skins.Skin.getShelfThumb(media, server_address, seasonThumb=1) + aToken
-
-            #WINDOW.setProperty("Plexbmc.LatestEpisode.%s.Path" % recentSeasonCount, s_url)
-            #WINDOW.setProperty("Plexbmc.LatestEpisode.%s.EpisodeTitle" % recentSeasonCount, media.get('title', '').encode('utf-8'))
-            #WINDOW.setProperty( "Plexbmc.LatestEpisode.%s.EpisodeNumber" % recentSeasonCount, media.get( 'index', '').encode('utf-8'))
-            #WINDOW.setProperty( "Plexbmc.LatestEpisode.%s.EpisodeSeason" % recentSeasonCount, media.get( 'parentIndex', '').encode('UTF-8') + '.' + media.get( 'index', 'Unknown').encode('UTF-8'))
-            #WINDOW.setProperty( "Plexbmc.LatestEpisode.%s.EpisodeSeasonNumber" % recentSeasonCount, media.get( 'parentIndex', '').encode('UTF-8'))
-            #WINDOW.setProperty( "Plexbmc.LatestEpisode.%s.ShowTitle" % recentSeasonCount, media.get( 'grandparentTitle', '').encode('UTF-8'))
-            #WINDOW.setProperty("Plexbmc.LatestEpisode.%s.Thumb" % recentSeasonCount, s_thumb)
-            #WINDOW.setProperty("Plexbmc.LatestEpisode.%s.uuid" % recentSeasonCount, libuuid.encode('utf-8'))
 
             listitem = xbmcgui.ListItem(
                 label=media.get('title', 'Unknown').encode('UTF-8'),
@@ -1528,35 +1515,14 @@ def deck(section_path):
             listitem.setProperty('EpisodeSeasonNumber', media.get( 'parentIndex', 'Unknown').encode('UTF-8'))
             listitem.setProperty('ShowTitle', media.get( 'grandparentTitle', 'Unknown').encode('UTF-8'))
 
-            listitem.setProperty('node.target', "Videos")
+            listitem.setProperty('node.target', window)
             listitems.append((url, listitem, True))
-
-
-            #printDebug("Building RecentEpisode window title: %s" % media.get('title', 'Unknown').encode('UTF-8'))
-            #printDebug("Building RecentEpisode window url: %s" % s_url)
-            #printDebug("Building RecentEpisode window thumb: %s" % s_thumb)
-            #recentSeasonCount += 1
 
         elif media.get('type', None) == "season":
             printDebug("Found a recent season entry [%s]" % (media.get('parentTitle', 'Unknown').encode('UTF-8'), ))
-
             #if plexbmc.settings('tvShelf') == "false":
             #    WINDOW.clearProperty("Plexbmc.LatestEpisode.1.Path")
             #    continue
-
-            #s_url = "ActivateWindow(VideoLibrary, plugin://plugin.video.plexbmc?url=%s&mode=%s%s, return)" % (plexbmc.gui.Utility.getLinkURL(
-            #    'http://' + server_address,
-            #    media,
-            #    server_address),
-            #    plexbmc.MODE_TVEPISODES,
-            #    aToken)
-
-            #WINDOW.setProperty("Plexbmc.LatestEpisode.%s.Path" % recentSeasonCount, s_url)
-            #WINDOW.setProperty("Plexbmc.LatestEpisode.%s.EpisodeTitle" % recentSeasonCount, '')
-            #WINDOW.setProperty("Plexbmc.LatestEpisode.%s.EpisodeSeason" % recentSeasonCount, media.get('title', '').encode('UTF-8'))
-            #WINDOW.setProperty("Plexbmc.LatestEpisode.%s.ShowTitle" % recentSeasonCount, media.get( 'parentTitle', 'Unknown').encode('UTF-8'))
-            #WINDOW.setProperty("Plexbmc.LatestEpisode.%s.Thumb" % recentSeasonCount, s_thumb)
-            #WINDOW.setProperty( "Plexbmc.LatestEpisode.%s.uuid" % recentSeasonCount, media.get( 'librarySectionUUID', '').encode('UTF-8'))
 
             listitem = xbmcgui.ListItem(
                 label=media.get('title', 'Unknown').encode('UTF-8'),
@@ -1569,67 +1535,69 @@ def deck(section_path):
             listitem.setProperty('EpisodeSeason', media.get( 'title', 'Unknown').encode('UTF-8'))
             listitem.setProperty('EpisodeTitle', '')
             listitem.setProperty('ShowTitle', media.get( 'parentTitle', 'Unknown').encode('UTF-8'))
-
-            listitem.setProperty('node.target', "VideoLibrary")
+            listitem.setProperty('node.target', window)
             listitems.append((url, listitem, True))
 
-            #recentSeasonCount += 1
-            #printDebug("Building Recent window title: %s" % media.get('parentTitle', 'Unknown').encode('UTF-8'))
-            #printDebug("Building Recent window url: %s" % s_url)
-            #printDebug("Building Recent window thumb: %s" % s_thumb)
-
-
-    xbmcplugin.addDirectoryItems(plexbmc.main.PleXBMC.getHandle(), listitems)
-    xbmcplugin.endOfDirectory(handle=plexbmc.main.PleXBMC.getHandle())
-
-    '''
         elif media.get('type') == "album":
-            if plexbmc.settings('musicShelf') == "false":
-                WINDOW.clearProperty("Plexbmc.LatestAlbum.1.Path")
-                continue
-            printDebug("Found a recent album entry")
+            #if plexbmc.settings('musicShelf') == "false":
+            #    WINDOW.clearProperty("Plexbmc.LatestAlbum.1.Path")
+            #    continue
+            #printDebug("Found a recent album entry")
 
-            s_url = "ActivateWindow(MusicFiles, plugin://plugin.video.plexbmc?url=%s&mode=%s%s, return)" % (plexbmc.gui.Utility.getLinkURL(
-                'http://' + server_address,
-                media,
-                server_address),
-                plexbmc.MODE_TRACKS,
-                aToken)
-            s_thumb = skins.Skin.getShelfThumb(media, server_address, seasonThumb=0) + aToken
+            #s_url = "ActivateWindow(MusicFiles, plugin://plugin.video.plexbmc?url=%s&mode=%s%s, return)" % (plexbmc.gui.Utility.getLinkURL(
+            #    'http://' + server_address,
+            #    media,
+            #    server_address),
+            #    plexbmc.MODE_TRACKS,
+            #    aToken)
+            #s_thumb = skins.Skin.getShelfThumb(media, server_address, seasonThumb=0) + aToken
 
-            WINDOW.setProperty("Plexbmc.LatestAlbum.%s.Path" % recentMusicCount, s_url)
-            WINDOW.setProperty("Plexbmc.LatestAlbum.%s.Title" % recentMusicCount, media.get('title', 'Unknown').encode('UTF-8'))
-            WINDOW.setProperty(
-                "Plexbmc.LatestAlbum.%s.Artist" %
-                recentMusicCount,
-                media.get(
-                    'parentTitle',
-                    'Unknown').encode('UTF-8'))
-            WINDOW.setProperty("Plexbmc.LatestAlbum.%s.Thumb" % recentMusicCount, s_thumb)
+            #WINDOW.setProperty("Plexbmc.LatestAlbum.%s.Path" % recentMusicCount, s_url)
+            #WINDOW.setProperty("Plexbmc.LatestAlbum.%s.Title" % recentMusicCount, media.get('title', 'Unknown').encode('UTF-8'))
+            #WINDOW.setProperty( "Plexbmc.LatestAlbum.%s.Artist" % recentMusicCount, media.get( 'parentTitle', 'Unknown').encode('UTF-8'))
+            #WINDOW.setProperty("Plexbmc.LatestAlbum.%s.Thumb" % recentMusicCount, s_thumb)
 
-            recentMusicCount += 1
-
-            printDebug("Building Recent window title: %s" % media.get('parentTitle', 'Unknown').encode('UTF-8'))
-            printDebug("Building Recent window url: %s" % s_url)
-            printDebug("Building Recent window thumb: %s" % s_thumb)
+            listitem = xbmcgui.ListItem(
+                label=media.get('title', 'Unknown').encode('UTF-8'),
+                label2=None,
+                iconImage=None,
+                thumbnailImage=thumb,
+                path=url,
+            )
+            #listitem.setProperty('uuid', libraryuuid.encode('UTF-8'))
+            listitem.setProperty('Artist', media.get( 'parentTitle', 'Unknown').encode('UTF-8'))
+            listitem.setProperty('node.target', window)
+            listitems.append((url, listitem, True))
 
         elif media.get('type') == "photo":
             printDebug("Found a recent photo entry: [%s]" % (media.get('title', 'Unknown').encode('UTF-8'), ))
 
-            p_url = "ActivateWindow(Pictures, plugin://plugin.video.plexbmc/?url=http://%s%s&mode=%s%s,return" % (
-                server_address, "/recentlyAdded", plexbmc.MODE_PHOTOS, aToken)
-            p_thumb = skins.Skin.getShelfThumb(media, server_address, seasonThumb=0) + aToken
+            #p_url = "ActivateWindow(Pictures, plugin://plugin.video.plexbmc/?url=http://%s%s&mode=%s%s,return" % (
+            #    server_address, "/recentlyAdded", plexbmc.MODE_PHOTOS, aToken)
+            #p_thumb = skins.Skin.getShelfThumb(media, server_address, seasonThumb=0) + aToken
 
-            WINDOW.setProperty("Plexbmc.LatestPhoto.%s.Path" % recentPhotoCount, p_url)
-            WINDOW.setProperty("Plexbmc.LatestPhoto.%s.Title" % recentPhotoCount, media.get('title', 'Unknown').encode('UTF-8'))
-            WINDOW.setProperty("Plexbmc.LatestPhoto.%s.Thumb" % recentPhotoCount, p_thumb)
+            #WINDOW.setProperty("Plexbmc.LatestPhoto.%s.Path" % recentPhotoCount, p_url)
+            #WINDOW.setProperty("Plexbmc.LatestPhoto.%s.Title" % recentPhotoCount, media.get('title', 'Unknown').encode('UTF-8'))
+            #WINDOW.setProperty("Plexbmc.LatestPhoto.%s.Thumb" % recentPhotoCount, p_thumb)
 
-            recentPhotoCount += 1
+            listitem = xbmcgui.ListItem(
+                label=media.get('title', 'Unknown').encode('UTF-8'),
+                label2=None,
+                iconImage=None,
+                thumbnailImage=thumb,
+                path=url,
+            )
+            #listitem.setProperty('uuid', libraryuuid.encode('UTF-8'))
+            listitem.setProperty('Title', media.get( 'title', 'Unknown').encode('UTF-8'))
+            listitem.setProperty('node.target', window)
+            listitems.append((url, listitem, True))
 
-            printDebug("Building Recent photo window title: %s" % media.get('title', 'Unknown').encode('UTF-8'))
-            printDebug("Building Recent photo window url: %s" % p_url)
-            printDebug("Building Recent photo window thumb: %s" % p_thumb)
-        '''
+        # Queue
+        # Channels
+
+    xbmcplugin.addDirectoryItems(plexbmc.main.PleXBMC.getHandle(), listitems)
+    xbmcplugin.endOfDirectory(handle=plexbmc.main.PleXBMC.getHandle())
+
 
 def jason_test():
     listitems = list()
