@@ -211,10 +211,11 @@ class PlexServers:
         Adds scheme and token if needed to url
         '''
         scheme = servers.get(section['uuid'], {}).get('scheme', 'http')
-        scheme = scheme + '://'
-        token = section.get('token', '')
-        token = '' if not token else '?X-Plex-Token=' + token
-        return scheme + url + token
+        parts = plexbmc.skins.getURLParts(url)
+        if (parts.scheme and scheme and parts.scheme != scheme) or not parts.scheme:
+            url, parts = plexbmc.skins.fixURLParts(url, scheme)
+
+        return plexbmc.skins.updateURLToken(url, section.get('token', None))
 
 
     @staticmethod
@@ -270,7 +271,7 @@ class PlexServers:
                     else:
                         xbmcgui.Dialog().ok("Error", error)
 
-        except requests.ConnectionError as msg:
+        except requests.exceptions.ConnectionError as msg:
             error = "Connection Error.  A network problem has occured (DNS failure, refused connection, etc)\nError: %s" % msg
             print "PleXBMC %s" % error
             if not suppress:
@@ -278,7 +279,7 @@ class PlexServers:
                     xbmc.executebuiltin("XBMC.Notification(\"PleXBMC\": Connection Error,)")
                 else:
                     xbmcgui.Dialog().ok("PleXBMC", "Connecton Error")
-        except requests.Timeout as msg:
+        except requests.exceptions.Timeout as msg:
             error = "Connection Timeout.\nError: %s" % msg
             print "PleXBMC %s" % error
             if not suppress:
@@ -286,7 +287,7 @@ class PlexServers:
                     xbmc.executebuiltin("XBMC.Notification(\"PleXBMC\": Connection Timeout,)")
                 else:
                     xbmcgui.Dialog().ok("PleXBMC", "Connecton Timeout")
-        except requests.TooManyRedirects as msg:
+        except requests.exceptions.TooManyRedirects as msg:
             error = "Too Many Redirects\nError: %s" % msg
             print "PleXBMC %s" % error
             if not suppress:
@@ -294,7 +295,7 @@ class PlexServers:
                     xbmc.executebuiltin("XBMC.Notification(\"PleXBMC\": Too Many Redirects,)")
                 else:
                     xbmcgui.Dialog().ok("PleXBMC", "Too Many Redirects")
-        except requests.HTTPError as msg:
+        except requests.exceptions.HTTPError as msg:
             error = "Invalid HTTP response\nError: %s" % msg
             print "PleXBMC %s" % error
             if not suppress:
@@ -302,6 +303,14 @@ class PlexServers:
                     xbmc.executebuiltin("XBMC.Notification(\"PleXBMC\": Invalid HTTP Response,)")
                 else:
                     xbmcgui.Dialog().ok("PleXBMC", "Invalid HTTP Response")
+        except requests.exceptions.InvalidSchema as msg:
+            error = "Invalid Schema (http or https missing)\nError: %s" % msg
+            print "PleXBMC %s" % error
+            if not suppress:
+                if not popup:
+                    xbmc.executebuiltin("XBMC.Notification(\"PleXBMC\": Invalid Schema - No http or https,)")
+                else:
+                    xbmcgui.Dialog().ok("PleXBMC", "Invalid Schema")
 
         return ''
 
@@ -623,7 +632,7 @@ class MyPlexServers:
         url_path = "/pms/servers"
         all_servers = MyPlexServers.getMyPlexURL(url_path)
 
-        if all_servers is False:
+        if not all_servers:
             return {}
 
         servers = plexbmc.etree.fromstring(all_servers)

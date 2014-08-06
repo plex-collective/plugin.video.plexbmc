@@ -661,6 +661,7 @@ class Utility:
         @ return: Usable http URL
         '''
         printDebug("== ENTER: getLinkURL ==")
+
         if not season_shelf:
             path = pathData.get('key', '')
             printDebug("Path is " + path)
@@ -673,15 +674,19 @@ class Utility:
             printDebug("Empty Path")
             return
 
+        parts = plexbmc.skins.getURLParts(path)
+
         # If key starts with http, then return it
-        if path[0:4] == "http":
+        #if path[0:4] == "http":
+        if parts.scheme in ['http', 'https']:
             printDebug("Detected http link")
             return path
 
         # If key starts with a / then prefix with server address
         elif path[0] == '/':
             printDebug("Detected base path link")
-            return 'http://%s%s' % (server, path)
+            #return 'http://%s%s' % (server, path)
+            return plexbmc.skins.updateURLPath(server, path)
 
         # If key starts with plex:// then it requires transcoding
         elif path[0:5] == "plex:":

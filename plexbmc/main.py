@@ -138,7 +138,14 @@ def contentHandler(content, params):
         section = params.get('section', None)
         if not section:
             return
-        plexbmc.skins.recentlyAdded(section)
+        plexbmc.skins.deckRecentlyAdded(section)
+        #plexbmc.skins.deck(section)
+    elif 'ondeck' in content:
+        section = params.get('section', None)
+        if not section:
+            return
+        plexbmc.skins.deckOnDeck(section)
+        #plexbmc.skins.deck(section)
 
 
 class PleXBMC(object):
@@ -197,7 +204,7 @@ class PleXBMC(object):
             plexbmc.skins_amber.amberskin()
 
         # Populate recently OR on deck shelf items
-        if str(sys.argv[1]) == "shelf":
+        elif str(sys.argv[1]) == "shelf":
             plexbmc.skins.shelf()
 
         # Populate both recently AND on deck shelf items

@@ -51,6 +51,7 @@ DEBUG_DEV = None
 DEFAULT_PORT = "32400"
 #MYPLEX_SERVER = "my.plexapp.com"
 MYPLEX_SERVER = "plex.tv"
+TOKEN = 'X-Plex-Token'
 
 # g_loc = PLUGINPATH   * Does not work right, why? *
 LOC = "special://home/addons/plugin.video.plexbmc"
