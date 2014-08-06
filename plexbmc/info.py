@@ -32,7 +32,7 @@ Goal:  process...
 - once section is retreived, it will be adapted again all info labels that are provide by section
 - each label will know who to format itself based on the section it is in and will create
 
-
+'''
 
 class Info(ListItem):
     zope.interface.implements(IInfo)

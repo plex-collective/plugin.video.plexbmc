@@ -1,4 +1,5 @@
 import zope.interface
+from zope.interface import Interface
 
 #===============================================================================
 # Section Interface Markers
